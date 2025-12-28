@@ -54,3 +54,17 @@ If you use a different AI service, make sure to install the appropriate package 
 Langchain Quickstart Guide:
 
 https://docs.langchain.com/oss/javascript/langgraph/quickstart
+
+## Screenshots
+
+### Single file, single agent
+
+<img width="271" height="70" alt="image" src="https://github.com/user-attachments/assets/7d9bd216-2d4e-457b-876f-9080e30289cc" />
+
+### Multi file, multi agent
+
+<img width="229" height="54" alt="image" src="https://github.com/user-attachments/assets/d5208155-d681-4ccf-b2df-c5a8fc1e1548" />
+
+<img width="274" height="56" alt="image" src="https://github.com/user-attachments/assets/fea43131-6000-4687-94ee-59ef3604459c" />
+
+
