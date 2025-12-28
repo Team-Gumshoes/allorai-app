@@ -10,7 +10,8 @@ There is a single manager agent that determines which agent to use to answer the
 
 ## Branches
 
-- main: Contains the original single file `index.ts` file.
+- `main`: Contains the original single file `index.ts` file.
+- `scalable-multi-file-and-multi-agent-workflow`: Contains the same implementation in main, but in a scalable architecture with 2 agents.
 
 ## Agents
 
