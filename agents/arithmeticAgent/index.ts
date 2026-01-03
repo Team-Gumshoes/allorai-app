@@ -9,13 +9,13 @@ import { callTool } from "./callTool.js";
  * The agent will loop until there are no more tool calls
  * from the model. The results of the tool calls and the
  * model's responses are aggregated and returned.
- * @param {string} input - The user's input.
+ * @param {BaseMessage[]} input - The user's input.
  * @returns {Promise<BaseMessage[]>} - The aggregated results of the tool calls and the model's responses.
  */
 export async function runArithmeticAgent(
-  input: string
+  input: BaseMessage[]
 ): Promise<BaseMessage[]> {
-  let messages: BaseMessage[] = [new HumanMessage(input)];
+  let messages = [...input];
   let modelResponse = await callLlm(messages);
 
   while (true) {

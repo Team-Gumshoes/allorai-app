@@ -1,6 +1,9 @@
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
+import type { BaseMessage } from "@langchain/core/messages";
 import type { Intent } from "../../types/intents.js";
-import { model } from "../../models/ollama.js";
+// import { model } from "../../models/ollama.js";
+// import { model } from "../../models/gemini.js";
+import { model } from "../../models/openAi.js";
 
 /**
  * Classify the user's request into exactly ONE of the following categories:
@@ -16,7 +19,7 @@ export async function classifyIntent(input: string): Promise<Intent> {
 
     Classify the user's request into exactly ONE of the following categories:
     - arithmetic: simple math involving two numbers
-    - travel: tours, activities, locations, recommendations
+    - flights: getting flight data between two locations
     - unsupported: anything else
 
     Rules:
@@ -26,7 +29,7 @@ export async function classifyIntent(input: string): Promise<Intent> {
 
     Example outputs:
     { "intent": "arithmetic" }
-    { "intent": "travel" }
+    { "intent": "flights" }
     { "intent": "unsupported" }
     `),
     new HumanMessage(input),

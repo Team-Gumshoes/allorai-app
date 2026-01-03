@@ -6,21 +6,27 @@ Originally created as a single `index.ts` file (is `index.old.ts` for reference)
 
 ## Description
 
-There is a single manager agent that determines which agent to use to answer the user's prompt. This is decided by a `classifyIntent()` function, but will eventually be replaced by the manager reasoning on its own to determine the best course of action. This is to be able to call multiple agents, aggregate results, and do the final output.
+### continuous-multi-agent-travel-math-agents
+
+The manager agent uses `classifyIntent()` to classify the user's prompt into an intent (arithmetic, travel, unsupported). After knowing the intent, the manager agent can then call the appropriate agent to answer the user's prompt and return data.
+The travel agent uses the Amadeus API to fetch travel information. The flight data is manually formatted with a function and the data is summarized by the agent to let the user know the best choices.
 
 ## Branches
 
 - `main`: Contains the original single file `index.ts` file.
 - `scalable-multi-file-and-multi-agent-workflow`: Contains the same implementation in main, but in a scalable architecture with 2 agents.
+- `continuous-multi-agent-travel-math-agents`: Adds a third travel agent which uses a third party API (Amadeus) to fetch flight information for a single traveler as long as the user provides origin/destination aiports and arrival/departure dates.
 
 ## Agents
 
-- Manager agent
+- Manager Agent
   - Orchestrator/planner.
-  - Decides which agent to use.
+  - Decides which agent to use by classifying the user's intent (arithmetic, travel, unsupported)
   - Aggregates and formats the results to output.
-- Teacher agent
+- Teacher Agent
   - Answers simple arithmetic questions (+,-,\*,/) involving operations between 2 numbers. Will use tools when possible, and refuse to answer if not.
+- Travel Agent
+  - Gets user flight information for a single passenger if provided an origin airport, destination airport, departure date, and arrival date.
 
 ## Installation
 
@@ -36,10 +42,10 @@ You must also have an API key from an AI service you are using, or install a loc
 
 ## Usage/Examples
 
-To run this project run the following with your prompt. Quotation marks are mandatory to pass prompt as a single string.
+To run this project run the following to start the conversation. You can then continuously ask the agent questions.
 
 ```bash
-  pnpm run prompt "What is 4 + 6?"
+  pnpm run prompt
 ```
 
 ## AI Models
@@ -48,6 +54,7 @@ If you use a different AI service, make sure to install the appropriate package 
 
 - @langchain/google-genai
 - @langchain/ollama
+- @langchain/openai
 
 ## Learning Resources
 
@@ -66,5 +73,3 @@ https://docs.langchain.com/oss/javascript/langgraph/quickstart
 <img width="229" height="54" alt="image" src="https://github.com/user-attachments/assets/d5208155-d681-4ccf-b2df-c5a8fc1e1548" />
 
 <img width="274" height="56" alt="image" src="https://github.com/user-attachments/assets/fea43131-6000-4687-94ee-59ef3604459c" />
-
-
