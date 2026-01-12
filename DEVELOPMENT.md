@@ -15,6 +15,7 @@ Comprehensive guide for developing, extending, and maintaining the AllorAI trave
 9. [Useful Commands](#section-9-useful-commands)
 10. [Testing](#section-10-testing)
 11. [Switching Manager/Coordinator Language](#section-11-switching-managercoordinator-language)
+12. [Package Management in Docker](#section-12-package-management-in-docker)
 
 ---
 
@@ -32,7 +33,7 @@ Comprehensive guide for developing, extending, and maintaining the AllorAI trave
 **Verify installation**:
 ```bash
 docker --version
-docker-compose --version
+docker compose version
 ```
 
 ### Docker Desktop for Mac
@@ -47,7 +48,7 @@ docker-compose --version
 **Verify installation**:
 ```bash
 docker --version
-docker-compose --version
+docker compose version
 ```
 
 ### Docker Engine for Linux (Ubuntu/Debian)
@@ -89,12 +90,7 @@ Docker Desktop includes Docker Compose. On Linux, if using the plugin:
 docker compose version
 ```
 
-If you need standalone Docker Compose:
-```bash
-sudo curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-sudo chmod +x /usr/local/bin/docker-compose
-docker-compose --version
-```
+**Note**: The modern Docker Compose is invoked as `docker compose` (without hyphen). The legacy `docker-compose` command is deprecated.
 
 ---
 
@@ -102,17 +98,17 @@ docker-compose --version
 
 ### Monorepo Structure
 
-AllorAI uses a **monorepo** managed by **pnpm workspaces** and **Turborepo**. This means:
+AllorAI uses a **monorepo** managed by **pnpm workspaces** and **NX**. This means:
 
 - All code is in a single repository
 - Shared packages can be imported across apps
 - Dependencies are managed efficiently
-- Build system is optimized with caching
+- Build system is optimized with caching via NX
 
 ```
 allorai/
 ├── apps/                       # Application services
-│   ├── web/                    # React frontend
+│   ├── web/                    # React frontend (Rsbuild)
 │   ├── api-gateway/            # Express API gateway
 │   ├── typescript-agents/      # TypeScript AI agents
 │   └── python-agents/          # Python AI agents
@@ -122,7 +118,7 @@ allorai/
 │   └── utils/                  # Utility functions
 ├── docker-compose.yml          # Multi-service orchestration
 ├── pnpm-workspace.yaml         # Workspace configuration
-├── turbo.json                  # Build orchestration
+├── nx.json                     # NX build orchestration
 └── tsconfig.base.json          # Base TypeScript config
 ```
 
@@ -213,10 +209,10 @@ If you're developing UI features:
 
 ```bash
 # Start all services (frontend needs backend)
-docker-compose up web api-gateway typescript-agents python-agents
+docker compose up web api-gateway typescript-agents python-agents
 
 # Or start everything
-docker-compose up
+docker compose up
 ```
 
 **Files to edit**:
@@ -226,13 +222,19 @@ docker-compose up
 
 **Hot reloading**: Changes to `apps/web/` files automatically reload in browser.
 
+**Frontend Stack**:
+- **Rsbuild** - Fast Rust-based build tool (replaces Vite)
+- **TailwindCSS v4** - Utility-first CSS framework
+- **Zustand** - Lightweight state management
+- **React Router** - Client-side routing
+
 ### Working on Python Agents
 
 If you're developing Python agents (hotel, transport, coordinator):
 
 ```bash
 # Start only Python agents
-docker-compose up python-agents
+docker compose up python-agents
 
 # In another terminal, test directly
 curl -X POST http://localhost:8000/hotel/search \
@@ -253,7 +255,7 @@ If you're developing TypeScript agents (flight, optional coordinator):
 
 ```bash
 # Start only TypeScript agents
-docker-compose up typescript-agents
+docker compose up typescript-agents
 
 # Test directly
 curl -X POST http://localhost:3002/flight/search \
@@ -273,7 +275,7 @@ If you're developing the API routing layer:
 
 ```bash
 # Start API gateway and dependent services
-docker-compose up api-gateway typescript-agents python-agents
+docker compose up api-gateway typescript-agents python-agents
 ```
 
 **Files to edit**:
@@ -455,7 +457,7 @@ app.use('/restaurant', restaurantRouter);
 **Step 4: Test the new agent**
 ```bash
 # Rebuild and start
-docker-compose up --build typescript-agents
+docker compose up --build typescript-agents
 
 # Test the agent
 curl -X POST http://localhost:3002/restaurant/search \
@@ -621,7 +623,7 @@ app.include_router(restaurant_router, prefix="/restaurant", tags=["restaurant"])
 **Step 4: Test the new agent**
 ```bash
 # Rebuild and start
-docker-compose up --build python-agents
+docker compose up --build python-agents
 
 # Test the agent
 curl -X POST http://localhost:8000/restaurant/search \
@@ -714,7 +716,45 @@ export const restaurantApi = {
 };
 ```
 
-**Step 4: Create custom hook**
+**Step 4: Create Zustand store (optional)**
+
+Create `apps/web/src/features/restaurants/stores/restaurantStore.ts`:
+```typescript
+import { create } from 'zustand';
+import type { Restaurant, RestaurantSearchParams } from '../types';
+import { restaurantApi } from '../api/restaurantApi';
+
+interface RestaurantState {
+  restaurants: Restaurant[];
+  loading: boolean;
+  error: string | null;
+  search: (params: RestaurantSearchParams) => Promise<void>;
+  clearError: () => void;
+}
+
+export const useRestaurantStore = create<RestaurantState>((set) => ({
+  restaurants: [],
+  loading: false,
+  error: null,
+
+  search: async (params) => {
+    set({ loading: true, error: null });
+    try {
+      const results = await restaurantApi.search(params);
+      set({ restaurants: results, loading: false });
+    } catch (err) {
+      set({
+        error: err instanceof Error ? err.message : 'Search failed',
+        loading: false
+      });
+    }
+  },
+
+  clearError: () => set({ error: null }),
+}));
+```
+
+**Step 5: Create custom hook (alternative to Zustand)**
 
 Create `apps/web/src/features/restaurants/hooks/useRestaurantSearch.ts`:
 ```typescript
@@ -744,7 +784,7 @@ export const useRestaurantSearch = () => {
 };
 ```
 
-**Step 5: Create components**
+**Step 6: Create components**
 
 Create `apps/web/src/features/restaurants/components/RestaurantCard.tsx`:
 ```typescript
@@ -760,7 +800,7 @@ export function RestaurantCard({ restaurant, onSelect }: RestaurantCardProps) {
   return (
     <Card onClick={() => onSelect?.(restaurant)}>
       <h3>{restaurant.name}</h3>
-      <p>{restaurant.cuisine} • {restaurant.priceRange}</p>
+      <p>{restaurant.cuisine} - {restaurant.priceRange}</p>
       <p>Rating: {restaurant.rating}/5</p>
       <p>{restaurant.city}</p>
     </Card>
@@ -806,17 +846,19 @@ export function RestaurantSearchForm({ onSearch }: RestaurantSearchFormProps) {
 }
 ```
 
-**Step 6: Create page component**
+**Step 7: Create page component**
 
 Create `apps/web/src/features/restaurants/RestaurantsPage.tsx`:
 ```typescript
-import { useRestaurantSearch } from './hooks/useRestaurantSearch';
+import { useRestaurantStore } from './stores/restaurantStore';
+// Or: import { useRestaurantSearch } from './hooks/useRestaurantSearch';
 import { RestaurantSearchForm } from './components/RestaurantSearchForm';
 import { RestaurantCard } from './components/RestaurantCard';
 import { LoadingSpinner } from '@allorai/ui-components';
 
 export function RestaurantsPage() {
-  const { restaurants, loading, error, search } = useRestaurantSearch();
+  const { restaurants, loading, error, search } = useRestaurantStore();
+  // Or: const { restaurants, loading, error, search } = useRestaurantSearch();
 
   return (
     <div>
@@ -838,7 +880,7 @@ export function RestaurantsPage() {
 }
 ```
 
-**Step 7: Add route**
+**Step 8: Add route**
 
 Edit `apps/web/src/App.tsx`:
 ```typescript
@@ -855,7 +897,7 @@ Instead of creating new components, use shared ones:
 ```typescript
 import { Button, Card, SearchBar, LoadingSpinner } from '@allorai/ui-components';
 
-// These components are styled with Tailwind and reusable
+// These components are styled with TailwindCSS v4 and reusable
 ```
 
 ### Using Shared Types
@@ -1003,7 +1045,7 @@ export function RestaurantCard({ name, cuisine, rating, onClick }: RestaurantCar
     <div className="border rounded-lg p-4 hover:shadow-lg cursor-pointer" onClick={onClick}>
       <h3 className="text-xl font-bold">{name}</h3>
       <p className="text-gray-600">{cuisine}</p>
-      <p className="text-yellow-500">★ {rating}/5</p>
+      <p className="text-yellow-500">* {rating}/5</p>
     </div>
   );
 }
@@ -1030,8 +1072,8 @@ Create `packages/utils/src/restaurant-utils.ts`:
  * @returns Formatted rating string with stars
  */
 export function formatRating(rating: number): string {
-  const stars = '★'.repeat(Math.floor(rating));
-  const halfStar = rating % 1 >= 0.5 ? '½' : '';
+  const stars = '*'.repeat(Math.floor(rating));
+  const halfStar = rating % 1 >= 0.5 ? '1/2' : '';
   return `${stars}${halfStar} (${rating})`;
 }
 
@@ -1061,7 +1103,7 @@ export * from './restaurant-utils';
 | **typescript-agents** | `OPENAI_API_KEY`, `AMADEUS_API_KEY`, `AMADEUS_API_SECRET` | LangChain agents, flight search |
 | **python-agents** | `OPENAI_API_KEY` | LangChain agents |
 | **api-gateway** | None | Proxies requests only |
-| **web** | `VITE_API_GATEWAY_URL` | Frontend API endpoint |
+| **web** | `VITE_API_GATEWAY_URL` | Frontend API endpoint (build-time) |
 
 ### Where to Get API Keys
 
@@ -1116,7 +1158,7 @@ AMADEUS_API_SECRET=your-real-secret
 3. Add real API keys
 4. Restart services:
 ```bash
-docker-compose restart
+docker compose restart
 ```
 
 ---
@@ -1153,8 +1195,8 @@ services:
 
 **Solution 1**: Rebuild containers
 ```bash
-docker-compose down
-docker-compose up --build
+docker compose down
+docker compose up --build
 ```
 
 **Solution 2**: Check tsconfig.json references
@@ -1200,14 +1242,14 @@ volumes:
 
 **Solution 2**: Rebuild the service
 ```bash
-docker-compose up --build web
+docker compose up --build web
 ```
 
 **Solution 3**: Hard reload browser (Ctrl+Shift+R / Cmd+Shift+R)
 
 **Solution 4**: Check for TypeScript errors
 ```bash
-docker-compose logs web
+docker compose logs web
 ```
 
 ### TypeScript errors with workspace packages
@@ -1226,13 +1268,13 @@ docker-compose logs web
 }
 ```
 
-**Solution 2**: For Vite apps, add resolve.alias
+**Solution 2**: For Rsbuild apps, add source.alias
 ```typescript
-// vite.config.ts
+// rsbuild.config.ts
 import path from 'path';
 
 export default defineConfig({
-  resolve: {
+  source: {
     alias: {
       '@allorai/types': path.resolve(__dirname, '../../packages/types/src'),
     }
@@ -1286,8 +1328,8 @@ docker system prune -a --volumes
 
 **Solution**: Rebuild Python container
 ```bash
-docker-compose build --no-cache python-agents
-docker-compose up python-agents
+docker compose build --no-cache python-agents
+docker compose up python-agents
 ```
 
 ---
@@ -1298,47 +1340,47 @@ docker-compose up python-agents
 
 ```bash
 # Start all services
-docker-compose up
+docker compose up
 
 # Start in background (detached)
-docker-compose up -d
+docker compose up -d
 
 # Start with rebuild
-docker-compose up --build
+docker compose up --build
 
 # Start specific services
-docker-compose up web api-gateway
+docker compose up web api-gateway
 
 # Stop all services
-docker-compose down
+docker compose down
 
 # Stop and remove volumes
-docker-compose down -v
+docker compose down -v
 
 # View logs (all services)
-docker-compose logs -f
+docker compose logs -f
 
 # View logs (specific service)
-docker-compose logs -f web
+docker compose logs -f web
 
 # Restart a service
-docker-compose restart web
+docker compose restart web
 
 # Rebuild a service
-docker-compose build web
+docker compose build web
 
 # Rebuild without cache
-docker-compose build --no-cache web
+docker compose build --no-cache web
 
 # Execute command in running container
-docker-compose exec web sh
-docker-compose exec python-agents bash
+docker compose exec web sh
+docker compose exec python-agents bash
 
 # List running services
-docker-compose ps
+docker compose ps
 
 # View service status
-docker-compose top
+docker compose top
 ```
 
 ### pnpm Workspace Commands
@@ -1353,6 +1395,9 @@ pnpm --filter @allorai/web install
 # Add dependency to specific workspace
 pnpm --filter @allorai/web add react-query
 
+# Remove dependency from specific workspace
+pnpm --filter @allorai/web remove react-query
+
 # Run script in specific workspace
 pnpm --filter @allorai/web dev
 
@@ -1366,42 +1411,61 @@ pnpm -r build
 pnpm -r clean
 ```
 
+### NX Commands
+
+```bash
+# Run a target for all projects
+nx run-many --target=build
+
+# Run a target for a specific project
+nx run @allorai/web:build
+
+# View project graph
+nx graph
+
+# View affected projects (based on git changes)
+nx affected --target=build
+
+# Clear NX cache
+nx reset
+```
+
 ### Accessing Container Shells
 
 ```bash
 # Node.js containers (Alpine Linux)
-docker-compose exec web sh
-docker-compose exec api-gateway sh
-docker-compose exec typescript-agents sh
+docker compose exec web sh
+docker compose exec api-gateway sh
+docker compose exec typescript-agents sh
 
 # Python container
-docker-compose exec python-agents bash
+docker compose exec python-agents bash
 
 # Run commands in container
-docker-compose exec web pnpm install
-docker-compose exec python-agents pip install requests
+docker compose exec web pnpm install
+docker compose exec python-agents pip install requests
 ```
 
 ### Viewing Logs
 
 ```bash
 # All logs
-docker-compose logs
+docker compose logs
 
 # Follow logs (live)
-docker-compose logs -f
+docker compose logs -f
 
 # Last 100 lines
-docker-compose logs --tail=100
+docker compose logs --tail=100
 
 # Specific service
-docker-compose logs -f web
+docker compose logs -f web
 
 # Multiple services
-docker-compose logs -f web api-gateway
+docker compose logs -f web api-gateway
 
 # With timestamps
-docker-compose logs -f -t web
+docker compose logs -f -t web
 ```
 
 ### Cleaning Up Docker Resources
@@ -1434,7 +1498,7 @@ docker system df
 
 ```bash
 # From host machine
-docker-compose exec web pnpm test
+docker compose exec web pnpm test
 
 # Or add to package.json:
 {
@@ -1463,13 +1527,13 @@ describe('FlightsPage', () => {
 **TypeScript tests**:
 ```bash
 # Add jest or vitest
-docker-compose exec typescript-agents pnpm test
+docker compose exec typescript-agents pnpm test
 ```
 
 **Python tests**:
 ```bash
 # Add pytest to requirements.txt
-docker-compose exec python-agents pytest
+docker compose exec python-agents pytest
 ```
 
 Create `apps/python-agents/agents/hotel/tests/test_agent.py`:
@@ -1493,7 +1557,7 @@ async def test_hotel_search():
 **Direct agent testing**:
 ```bash
 # Start only the agent service
-docker-compose up typescript-agents
+docker compose up typescript-agents
 
 # Test with curl
 curl -X POST http://localhost:3002/flight/search \
@@ -1517,10 +1581,10 @@ echo "Response: $response"
 
 # Check if response contains expected data
 if echo "$response" | grep -q "success"; then
-  echo "✅ Test passed"
+  echo "Test passed"
   exit 0
 else
-  echo "❌ Test failed"
+  echo "Test failed"
   exit 1
 fi
 ```
@@ -1589,7 +1653,7 @@ const COORDINATOR_URL = process.env.TYPESCRIPT_AGENTS_URL + '/coordinate';
 
 **Step 3**: Restart API Gateway
 ```bash
-docker-compose restart api-gateway
+docker compose restart api-gateway
 ```
 
 **Step 4**: Test
@@ -1649,15 +1713,260 @@ USE_PYTHON_COORDINATOR=false
 
 ---
 
+## Section 12: Package Management in Docker
+
+This section covers how to install and remove packages within Docker containers, and how to recover from accidentally using npm instead of pnpm.
+
+### Installing Python Packages (pip)
+
+**Add a package to the Python agents container**:
+
+```bash
+# Enter the running container
+docker compose exec python-agents bash
+
+# Install a package
+pip install <package-name>
+
+# Example: Install requests
+pip install requests
+
+# Exit the container
+exit
+```
+
+**Make the package permanent** (persists after container rebuild):
+
+Edit `apps/python-agents/requirements.txt`:
+```txt
+# Add your new package
+requests==2.31.0
+```
+
+Then rebuild:
+```bash
+docker compose build python-agents
+docker compose up python-agents
+```
+
+**Remove a Python package**:
+
+```bash
+# Enter the container
+docker compose exec python-agents bash
+
+# Remove the package
+pip uninstall <package-name>
+
+# Exit
+exit
+```
+
+**Make removal permanent**: Remove the package from `apps/python-agents/requirements.txt` and rebuild.
+
+**View installed packages**:
+```bash
+docker compose exec python-agents pip list
+docker compose exec python-agents pip freeze
+```
+
+### Installing Node.js Packages (pnpm)
+
+**IMPORTANT**: Always use `pnpm`, never `npm`, in this project. The monorepo is configured for pnpm workspaces.
+
+**Add a package to a specific app/package**:
+
+```bash
+# Enter the container
+docker compose exec web sh
+
+# Install a package (from the app directory)
+cd /app/apps/web
+pnpm add <package-name>
+
+# Example: Install axios
+pnpm add axios
+
+# Install as dev dependency
+pnpm add -D <package-name>
+
+# Exit
+exit
+```
+
+**Alternatively, from the host machine** (if pnpm is installed locally):
+
+```bash
+# Add to a specific workspace
+pnpm --filter @allorai/web add axios
+pnpm --filter @allorai/api-gateway add cors
+
+# Add as dev dependency
+pnpm --filter @allorai/web add -D vitest
+```
+
+**Remove a Node.js package**:
+
+```bash
+# From inside container
+docker compose exec web sh
+cd /app/apps/web
+pnpm remove <package-name>
+exit
+
+# Or from host machine
+pnpm --filter @allorai/web remove axios
+```
+
+**Add package to root (shared dev dependency)**:
+
+```bash
+pnpm add -D -w prettier  # -w means workspace root
+```
+
+**View installed packages**:
+```bash
+docker compose exec web pnpm list
+docker compose exec web pnpm list --depth=0  # Top-level only
+```
+
+### Recovering from Accidentally Using npm
+
+If someone accidentally runs `npm install` instead of `pnpm install`, it creates a `package-lock.json` file and may corrupt the `node_modules`. Here's how to recover:
+
+**Step 1: Stop all services**
+```bash
+docker compose down
+```
+
+**Step 2: Remove npm artifacts**
+```bash
+# Remove package-lock.json files (npm creates these)
+find . -name "package-lock.json" -type f -delete
+
+# Remove all node_modules directories
+find . -name "node_modules" -type d -prune -exec rm -rf {} +
+
+# Also remove the pnpm lock file to regenerate it cleanly
+rm -f pnpm-lock.yaml
+```
+
+**Step 3: Clean Docker volumes**
+```bash
+# Remove Docker volumes that may have cached node_modules
+docker compose down -v
+
+# Prune any dangling volumes
+docker volume prune -f
+```
+
+**Step 4: Reinstall with pnpm**
+```bash
+# If pnpm is installed locally
+pnpm install
+
+# This regenerates pnpm-lock.yaml from package.json files
+```
+
+**Step 5: Rebuild Docker containers**
+```bash
+docker compose build --no-cache
+docker compose up
+```
+
+**Full recovery script** (save as `scripts/recover-npm-accident.sh`):
+```bash
+#!/bin/bash
+echo "Recovering from npm accident..."
+
+# Stop services
+docker compose down -v
+
+# Remove npm artifacts
+echo "Removing package-lock.json files..."
+find . -name "package-lock.json" -type f -delete
+
+# Remove node_modules
+echo "Removing node_modules directories..."
+find . -name "node_modules" -type d -prune -exec rm -rf {} +
+
+# Remove lock file
+echo "Removing pnpm-lock.yaml..."
+rm -f pnpm-lock.yaml
+
+# Remove .nx cache
+echo "Removing NX cache..."
+rm -rf .nx
+
+# Reinstall
+echo "Reinstalling with pnpm..."
+pnpm install
+
+# Rebuild Docker
+echo "Rebuilding Docker containers..."
+docker compose build --no-cache
+
+echo "Recovery complete! Run 'docker compose up' to start services."
+```
+
+Make it executable:
+```bash
+chmod +x scripts/recover-npm-accident.sh
+```
+
+### Preventing npm Usage
+
+**Add to your shell profile** (`~/.bashrc` or `~/.zshrc`):
+```bash
+# Warn when using npm in pnpm projects
+npm() {
+  if [ -f "pnpm-workspace.yaml" ] || [ -f "pnpm-lock.yaml" ]; then
+    echo "WARNING: This is a pnpm project! Use 'pnpm' instead of 'npm'"
+    echo "Run the command with pnpm instead? (y/n)"
+    read -r response
+    if [ "$response" = "y" ]; then
+      pnpm "$@"
+    fi
+  else
+    command npm "$@"
+  fi
+}
+```
+
+**Add a preinstall script** to root `package.json`:
+```json
+{
+  "scripts": {
+    "preinstall": "npx only-allow pnpm"
+  }
+}
+```
+
+This will error if someone tries to use npm or yarn.
+
+### Quick Reference: Package Commands in Docker
+
+| Action | pnpm (Node.js) | pip (Python) |
+|--------|----------------|--------------|
+| Install package | `docker compose exec web pnpm add <pkg>` | `docker compose exec python-agents pip install <pkg>` |
+| Install dev dep | `docker compose exec web pnpm add -D <pkg>` | N/A |
+| Remove package | `docker compose exec web pnpm remove <pkg>` | `docker compose exec python-agents pip uninstall <pkg>` |
+| List packages | `docker compose exec web pnpm list` | `docker compose exec python-agents pip list` |
+| Update package | `docker compose exec web pnpm update <pkg>` | `docker compose exec python-agents pip install --upgrade <pkg>` |
+
+---
+
 ## Additional Resources
 
 - [Docker Documentation](https://docs.docker.com/)
 - [pnpm Documentation](https://pnpm.io/)
-- [Turborepo Documentation](https://turbo.build/repo/docs)
+- [NX Documentation](https://nx.dev/getting-started/intro)
 - [LangChain Documentation](https://python.langchain.com/docs/get_started/introduction)
 - [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Vite Documentation](https://vitejs.dev/)
+- [Rsbuild Documentation](https://rsbuild.dev/)
+- [TailwindCSS v4 Documentation](https://tailwindcss.com/docs)
+- [Zustand Documentation](https://zustand-demo.pmnd.rs/)
 
 ---
 
@@ -1665,8 +1974,8 @@ USE_PYTHON_COORDINATOR=false
 
 1. Check this guide first
 2. Look at code comments in the repository
-3. Check Docker logs: `docker-compose logs -f`
+3. Check Docker logs: `docker compose logs -f`
 4. Open an issue on GitHub
 5. Ask the team in Slack/Discord
 
-Happy coding! 🚀
+Happy coding!
