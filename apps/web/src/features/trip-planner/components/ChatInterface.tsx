@@ -26,7 +26,7 @@ export default function ChatInterface({ messages, loading }: ChatInterfaceProps)
               className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
               {message.role === 'assistant' && (
-                <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
+                <div className="shrink-0 h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
                   <Bot className="h-5 w-5 text-primary-600" />
                 </div>
               )}
@@ -40,7 +40,7 @@ export default function ChatInterface({ messages, loading }: ChatInterfaceProps)
                 <p>{message.content}</p>
               </div>
               {message.role === 'user' && (
-                <div className="flex-shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
+                <div className="shrink-0 h-8 w-8 rounded-full bg-gray-200 flex items-center justify-center">
                   <User className="h-5 w-5 text-gray-600" />
                 </div>
               )}
@@ -48,7 +48,7 @@ export default function ChatInterface({ messages, loading }: ChatInterfaceProps)
           ))}
           {loading && (
             <div className="flex gap-3">
-              <div className="flex-shrink-0 h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
+              <div className="shrink-0 h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center">
                 <Bot className="h-5 w-5 text-primary-600" />
               </div>
               <div className="bg-gray-100 rounded-lg p-3">

@@ -70,7 +70,7 @@ export function SearchBar({
         placeholder={placeholder}
         className={`w-full rounded-lg border border-gray-300 ${
           showIcon ? 'pl-10' : 'pl-4'
-        } pr-4 py-2 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200`}
+        } pr-4 py-2 focus:border-blue-500 focus:outline-hidden focus:ring-2 focus:ring-blue-200`}
         {...props}
       />
     </div>

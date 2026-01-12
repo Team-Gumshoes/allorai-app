@@ -48,7 +48,7 @@ export function Card({
   className = '',
   hoverable = false,
 }: CardProps) {
-  const baseStyles = 'bg-white rounded-lg border border-gray-200 shadow-sm overflow-hidden';
+  const baseStyles = 'bg-white rounded-lg border border-gray-200 shadow-xs overflow-hidden';
   const interactiveStyles = onClick || hoverable
     ? 'cursor-pointer transition-shadow hover:shadow-md'
     : '';

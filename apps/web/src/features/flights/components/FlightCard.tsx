@@ -62,7 +62,7 @@ export default function FlightCard({ flight }: FlightCardProps) {
             {flight.currency} {flight.price.toLocaleString()}
           </p>
           <p className="text-sm text-gray-600 mb-4">per person</p>
-          <button className="w-full md:w-auto px-6 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+          <button className="w-full md:w-auto px-6 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
             Select
           </button>
         </div>

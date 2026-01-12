@@ -70,7 +70,7 @@ export function ResultCard({
 }: ResultCardProps) {
   return (
     <div
-      className={`bg-white rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow cursor-pointer overflow-hidden ${className}`}
+      className={`bg-white rounded-lg border border-gray-200 shadow-xs hover:shadow-md transition-shadow cursor-pointer overflow-hidden ${className}`}
       onClick={onClick}
     >
       {image && (
@@ -116,7 +116,7 @@ export function ResultCard({
             {badges.map((badge, index) => (
               <span
                 key={index}
-                className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded"
+                className="inline-block px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-sm"
               >
                 {badge}
               </span>

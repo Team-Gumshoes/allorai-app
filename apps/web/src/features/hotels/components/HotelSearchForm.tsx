@@ -106,7 +106,7 @@ export default function HotelSearchForm({ onSearch, loading }: HotelSearchFormPr
       <button
         type="submit"
         disabled={loading}
-        className="w-full md:w-auto px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full md:w-auto px-6 py-3 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
       >
         <Search className="h-5 w-5" />
         {loading ? 'Searching...' : 'Search Hotels'}

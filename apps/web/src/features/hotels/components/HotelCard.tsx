@@ -25,7 +25,7 @@ const amenityIcons: Record<string, any> = {
 export default function HotelCard({ hotel }: HotelCardProps) {
   return (
     <div className="bg-white border border-gray-200 rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-      <div className="h-48 bg-gradient-to-br from-primary-100 to-primary-200 flex items-center justify-center">
+      <div className="h-48 bg-linear-to-br from-primary-100 to-primary-200 flex items-center justify-center">
         {hotel.imageUrl ? (
           <img src={hotel.imageUrl} alt={hotel.name} className="w-full h-full object-cover" />
         ) : (
@@ -54,7 +54,7 @@ export default function HotelCard({ hotel }: HotelCardProps) {
             return (
               <div
                 key={amenity}
-                className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded"
+                className="flex items-center gap-1 text-xs text-gray-600 bg-gray-100 px-2 py-1 rounded-sm"
               >
                 <Icon className="h-3 w-3" />
                 <span>{amenity}</span>
@@ -71,7 +71,7 @@ export default function HotelCard({ hotel }: HotelCardProps) {
             </p>
             <p className="text-xs text-gray-600">per night</p>
           </div>
-          <button className="px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
+          <button className="px-4 py-2 bg-primary-600 text-white rounded-lg font-medium hover:bg-primary-700 focus:outline-hidden focus:ring-2 focus:ring-primary-500 focus:ring-offset-2">
             View
           </button>
         </div>

@@ -13,7 +13,7 @@ export default function Navbar() {
   const location = useLocation();
 
   return (
-    <nav className="bg-white shadow-sm">
+    <nav className="bg-white shadow-xs">
       <div className="container mx-auto px-4">
         <div className="flex h-16 items-center justify-between">
           <div className="flex items-center">
