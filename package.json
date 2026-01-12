@@ -5,17 +5,17 @@
   "packageManager": "pnpm@8.10.0",
   "description": "AllorAI - AI-powered travel planning platform",
   "scripts": {
-    "dev": "turbo run dev",
-    "build": "turbo run build",
-    "test": "turbo run test",
-    "lint": "turbo run lint",
+    "dev": "nx run-many --target=dev",
+    "build": "nx run-many --target=build",
+    "test": "nx run-many --target=test",
+    "lint": "nx run-many --target=lint",
     "docker:up": "docker-compose up",
     "docker:down": "docker-compose down",
     "docker:build": "docker-compose up --build",
-    "clean": "turbo run clean && rm -rf node_modules"
+    "clean": "nx run-many --target=clean && rm -rf node_modules"
   },
   "devDependencies": {
-    "turbo": "^1.10.16"
+    "nx": "22.3.3"
   },
   "engines": {
     "node": ">=18.0.0",

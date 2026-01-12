@@ -10,7 +10,7 @@ RUN corepack enable && corepack prepare pnpm@8.10.0 --activate
 
 # Copy workspace configuration
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
-COPY turbo.json ./
+COPY nx.json ./
 
 # Copy all package.json files
 COPY packages/types/package.json ./packages/types/

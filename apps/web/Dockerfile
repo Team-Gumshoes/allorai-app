@@ -10,7 +10,7 @@ RUN corepack enable && corepack prepare pnpm@8.10.0 --activate
 
 # Copy workspace configuration
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
-COPY turbo.json ./
+COPY nx.json ./
 
 # Copy all package.json files
 COPY packages/types/package.json ./packages/types/
@@ -33,11 +33,11 @@ COPY apps/web ./apps/web
 # Set working directory to the app
 WORKDIR /app/apps/web
 
-# Expose port
+# Expose port (Rsbuild dev server)
 EXPOSE 5173
 
 # Start development server with hot reload
-CMD ["pnpm", "run", "dev", "--", "--host"]
+CMD ["pnpm", "run", "dev"]
 
 # Production Build Stage
 FROM node:20-alpine AS builder
@@ -48,7 +48,7 @@ RUN corepack enable && corepack prepare pnpm@8.10.0 --activate
 
 # Copy workspace configuration
 COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
-COPY turbo.json ./
+COPY nx.json ./
 
 # Copy all package.json files
 COPY packages/types/package.json ./packages/types/
