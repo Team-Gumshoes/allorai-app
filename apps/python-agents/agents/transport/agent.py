@@ -4,8 +4,7 @@ Handles transport search queries (car rentals, trains, local transport).
 """
 
 from langchain_openai import ChatOpenAI
-from langchain.agents import AgentExecutor, create_openai_tools_agent
-from langchain.prompts import ChatPromptTemplate, MessagesPlaceholder
+from langgraph.prebuilt import create_react_agent
 from agents.transport.tools import transport_tools
 from agents.transport.prompts import TRANSPORT_SYSTEM_PROMPT
 from shared.config import settings
@@ -27,27 +26,11 @@ class TransportAgent:
             api_key=settings.openai_api_key
         )
 
-        # Create prompt template
-        self.prompt = ChatPromptTemplate.from_messages([
-            ("system", TRANSPORT_SYSTEM_PROMPT),
-            ("human", "{input}"),
-            MessagesPlaceholder(variable_name="agent_scratchpad"),
-        ])
-
-        # Create agent
-        self.agent = create_openai_tools_agent(
-            llm=self.llm,
+        # Create agent using langgraph's create_react_agent
+        self.agent = create_react_agent(
+            model=self.llm,
             tools=transport_tools,
-            prompt=self.prompt
-        )
-
-        # Create agent executor
-        self.agent_executor = AgentExecutor(
-            agent=self.agent,
-            tools=transport_tools,
-            verbose=True,
-            handle_parsing_errors=True,
-            max_iterations=5
+            state_modifier=TRANSPORT_SYSTEM_PROMPT
         )
 
         logger.info("Transport Agent initialized successfully")
@@ -65,16 +48,20 @@ class TransportAgent:
         try:
             logger.info(f"Processing transport query: {query}")
 
-            result = await self.agent_executor.ainvoke({
-                "input": query
+            result = await self.agent.ainvoke({
+                "messages": [{"role": "user", "content": query}]
             })
+
+            # Extract the last AI message as the response
+            messages = result.get("messages", [])
+            response = messages[-1].content if messages else ""
 
             logger.info("Transport query processed successfully")
 
             return {
                 "success": True,
                 "query": query,
-                "response": result.get("output", ""),
+                "response": response,
                 "agent": "transport"
             }
 

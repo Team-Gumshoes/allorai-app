@@ -15,12 +15,14 @@ Available agents:
 The coordinator can delegate to the TypeScript flight agent via HTTP.
 """
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import logging
 import sys
 from contextlib import asynccontextmanager
+
+from requests import Request
 
 # Import routers
 from agents.hotel.routes import router as hotel_router
