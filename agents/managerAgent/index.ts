@@ -20,7 +20,7 @@ export async function runManager(
       type: "final",
       message: [
         new AIMessage(
-          "Hi! I can help you find flights.\n Please ask an arithmetic or travel-related question."
+          "Hi! I can help you find flights.\nPlease ask an arithmetic or travel-related question."
         ),
       ],
     };
@@ -33,12 +33,12 @@ export async function runManager(
   if (!lastHumanMessage) {
     return {
       type: "error",
-      message: [new AIMessage("No user input provided")],
+      message: [...messages, new AIMessage("No user input provided")],
     };
   }
 
-  // Determine the user's intent
-  const intent = await classifyIntent(lastHumanMessage.content as string);
+  // Determine the user's intent (now context-aware)
+  const intent = await classifyIntent(messages);
 
   if (intent === "arithmetic") {
     const agentResults = await runArithmeticAgent(messages);
@@ -52,24 +52,26 @@ export async function runManager(
     if ("needsClarification" in agentResults) {
       return {
         type: "final",
-        message: [new AIMessage(agentResults.needsClarification)],
+        message: agentResults.messages,
       };
     }
 
-    // const { flightData, formattedFlights, summary } = await runFlightAgent(
-    //   input
-    // );
-    const { flightData, summary, formattedFlights } = agentResults;
+    const { flightData, summary, formattedFlights, messages: agentMessages } = agentResults;
+
+    // Add the summary as the final AI message
+    const finalMessage = new AIMessage(`${summary}\n\n${formattedFlights}`);
 
     return {
       type: "final",
-      message: [new AIMessage(`${summary}\n\n${formattedFlights}`)],
+      message: [...agentMessages, finalMessage],
     };
   }
 
+  // Unsupported intent - return conversation with new message
   return {
     type: "final",
     message: [
+      ...messages,
       new AIMessage("Please ask an arithmetic or travel-related question."),
     ],
   };
