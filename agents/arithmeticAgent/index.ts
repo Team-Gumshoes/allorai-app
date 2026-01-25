@@ -19,13 +19,19 @@ export async function runArithmeticAgent(
   let modelResponse = await callLlm(messages);
 
   while (true) {
+    // Add the model's response to messages
+    messages = addMessages(messages, [modelResponse]);
+
+    // If no tools were called, we're done
     if (!modelResponse.tool_calls?.length) break;
 
+    // Execute all tool calls
     const toolResults = await Promise.all(
       modelResponse.tool_calls.map(callTool)
     );
 
-    messages = addMessages(messages, [modelResponse, ...toolResults]);
+    // Add tool results and get next response
+    messages = addMessages(messages, toolResults);
     modelResponse = await callLlm(messages);
   }
 
