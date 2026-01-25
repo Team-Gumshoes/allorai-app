@@ -20,6 +20,7 @@ export const findCheapestFlights = tool(
     destinationLocationCode,
     departureDate,
     returnDate,
+    includedAirlinesCodes,
   }) => {
     const token = process.env.AMADEUS_API_TOKEN;
 
@@ -38,6 +39,14 @@ export const findCheapestFlights = tool(
     url.searchParams.set("currencyCode", "USD");
     url.searchParams.set("adults", String(1));
 
+    // Only include airline codes if provided
+    if (includedAirlinesCodes && includedAirlinesCodes.length > 0) {
+      url.searchParams.set(
+        "includedAirlinesCodes",
+        includedAirlinesCodes.join(",")
+      );
+    }
+
     // console.log(url.toString());
 
     const response = await fetch(url.toString(), {
@@ -48,11 +57,17 @@ export const findCheapestFlights = tool(
       },
     });
 
+    // if (!response.ok) {
+    //   const text = await response.text();
+    //   throw new Error(
+    //     `Flight API error: ${response.status} ${response.statusText} ${text}`
+    //   );
+    // }
+
     if (!response.ok) {
-      const text = await response.text();
-      throw new Error(
-        `Flight API error: ${response.status} ${response.statusText} ${text}`
-      );
+      // API error - don't expose technical details to user
+      // Just throw a simple error that will be caught by the agent
+      throw new Error("Flight API unavailable");
     }
 
     const rawData = await response.json();
@@ -157,31 +172,52 @@ export const findCheapestFlights = tool(
   {
     name: "findCheapestFlights",
     description: `
-    Finds the cheapest available round-trip flights.
+    Searches for the cheapest available round-trip flights between two airports.
 
-    Use this tool ONLY when the user asks about flights,
-    airfare prices, or flight recommendations.
+    Use this tool when the user asks about:
+    - Flight prices or availability
+    - Round-trip airfare
+    - Flight options between destinations
 
-    You MUST provide valid IATA airport codes (e.g. "JFK", "LAX").
-    Dates must be in YYYY-MM-DD format.
+    REQUIRED PARAMETERS (all must be provided):
+    - Origin airport (IATA code, e.g., "JFK", "LAX", "ORD")
+    - Destination airport (IATA code, e.g., "LHR", "CDG", "NRT")
+    - Departure date (format: YYYY-MM-DD)
+    - Return date (format: YYYY-MM-DD)
+
+    If any required parameter is missing from the conversation:
+    - Ask the user for it naturally
+    - Explain what format you need (e.g., "I need the 3-letter airport code")
     `,
     schema: z.object({
       originLocationCode: z
         .string()
         .length(3)
-        .describe("IATA airport code for departure (e.g. JFK)"),
+        .describe(
+          "REQUIRED: IATA airport code for departure (exactly 3 letters, e.g., JFK, LAX, ORD)"
+        ),
       destinationLocationCode: z
         .string()
         .length(3)
-        .describe("IATA airport code for destination (e.g. LAX)"),
-      departureDate: z.string().describe("Departure date in YYYY-MM-DD format"),
-      returnDate: z.string().describe("Return date in YYYY-MM-DD format"),
-      // max: z
-      //   .number()
-      //   .min(1)
-      //   .max(20)
-      //   .default(5)
-      //   .describe("Maximum number of flight results"),
+        .describe(
+          "REQUIRED: IATA airport code for destination (exactly 3 letters, e.g., LHR, CDG, NRT)"
+        ),
+      departureDate: z
+        .string()
+        .describe(
+          "REQUIRED: Departure date in YYYY-MM-DD format (e.g., 2026-01-08)"
+        ),
+      returnDate: z
+        .string()
+        .describe(
+          "REQUIRED: Return date in YYYY-MM-DD format (e.g., 2026-01-16)"
+        ),
+      includedAirlinesCodes: z
+        .array(z.string().length(2))
+        .optional()
+        .describe(
+          "OPTIONAL: Array of 2-letter airline codes (e.g., ['AA', 'DL', 'UA'])"
+        ),
     }),
   }
 );
