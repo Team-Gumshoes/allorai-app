@@ -5,7 +5,7 @@ import { BaseMessage } from "@langchain/core/messages";
 export function formatFlights(messages: BaseMessage[]): string {
   const flights = extractLastToolJson<FlightResults[]>(messages);
 
-  if (!flights || flights.length === 0) {
+  if (!flights || !Array.isArray(flights) || flights.length === 0) {
     return "No flights found.";
   }
 
