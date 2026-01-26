@@ -4,7 +4,9 @@ Main orchestrator that coordinates between flight, hotel, and transport agents.
 """
 
 from agents.coordinator.graph import get_coordinator_graph
-from typing import Dict, Any
+from typing import Dict, Any, Optional, Callable
+from shared.mcp_client import get_mcp_client, NearbyPlacesRequest, NearbyPlacesResponse
+from langsmith import traceable
 import logging
 
 logger = logging.getLogger(__name__)
@@ -26,6 +28,7 @@ class CoordinatorAgent:
     def __init__(self):
         """Initialize the Coordinator Agent with LangGraph."""
         self.graph = get_coordinator_graph()
+        self.mcp_client = get_mcp_client()
         logger.info("Coordinator Agent initialized with LangGraph")
 
     async def coordinate(self, user_query: str) -> Dict[str, Any]:
@@ -81,6 +84,33 @@ class CoordinatorAgent:
                 "error": str(e),
                 "agent": "coordinator"
             }
+
+    @traceable(name="coordinator_search_nearby_places", run_type="chain")
+    async def search_nearby_places(
+        self,
+        request: NearbyPlacesRequest,
+        mock_data_provider: Optional[Callable] = None
+    ) -> NearbyPlacesResponse:
+        """
+        Search for nearby places using the MCP server via the agent's MCP client.
+
+        This method delegates the MCP tool call to the agent's internal MCP client,
+        keeping all MCP interactions centralized within the agent.
+
+        Args:
+            request: NearbyPlacesRequest with coordinates and place types
+            mock_data_provider: Optional callable that returns mock data dict.
+                               Signature: (latitude, longitude, place_types, radius_miles) -> dict
+
+        Returns:
+            NearbyPlacesResponse with places or error information
+        """
+        logger.info(f"Agent searching nearby places at ({request.latitude}, {request.longitude})")
+
+        return await self.mcp_client.search_nearby_places(
+            request=request,
+            mock_data_provider=mock_data_provider
+        )
 
 
 # Global agent instance

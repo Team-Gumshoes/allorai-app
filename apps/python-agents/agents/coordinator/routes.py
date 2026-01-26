@@ -7,6 +7,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Dict, Any, List, Optional
 from agents.coordinator.agent import get_coordinator_agent
+from agents.coordinator.mock_data import get_mock_nearby_places_response
+from shared.mcp_client import NearbyPlacesRequest, NearbyPlacesResponse
 import logging
 
 logger = logging.getLogger(__name__)
@@ -81,6 +83,44 @@ async def coordinate_travel_plan(request: CoordinateRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+
+## this is just creating a baseline for further implementation; just for mvp based on wireframe
+## todo : expand further based on requirements/user inputs from ui for initial itinerary generation
+@router.post("/nearby-places", response_model=NearbyPlacesResponse)
+async def find_nearby_places(request: NearbyPlacesRequest):
+    """
+    Find places nearby a set coordinate based on place types.
+
+    This endpoint uses the MCP server to search for places near the given coordinates
+    based on one or more place types (e.g., restaurant, cafe, tourist_attraction).
+
+    When multiple types are provided, results are deduplicated by place_id.
+
+    Args:
+        request: Request with coordinates and place types
+
+    Returns:
+        List of nearby places matching the requested types
+
+    Raises:
+        HTTPException: If the search fails
+    """
+    try:
+        logger.info(f"Raw request received: {request}")
+
+        coordinator = get_coordinator_agent()
+        response = await coordinator.search_nearby_places(
+            request=request,
+            mock_data_provider=get_mock_nearby_places_response
+        )
+
+        return response
+
+    except Exception as e:
+        logger.error(f"Nearby places endpoint error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/health")
 async def health_check():
     """
@@ -93,5 +133,5 @@ async def health_check():
         "status": "healthy",
         "agent": "coordinator",
         "service": "python-agents",
-        "capabilities": ["flight_delegation", "hotel_search", "transport_search", "multi_agent_coordination"]
+        "capabilities": ["flight_delegation", "hotel_search", "transport_search", "multi_agent_coordination", "nearby_places"]
     }
