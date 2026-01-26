@@ -15,9 +15,13 @@ Available agents:
 The coordinator can delegate to the TypeScript flight agent via HTTP.
 """
 
+# Import configuration FIRST to load .env before any LangChain imports
+from shared.config import settings
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 import logging
 import sys
 from contextlib import asynccontextmanager
@@ -28,9 +32,9 @@ from requests import Request
 from agents.hotel.routes import router as hotel_router
 from agents.transport.routes import router as transport_router
 from agents.coordinator.routes import router as coordinator_router
+from agents.food.routes import router as food_router
+from shared.mcp_routes import router as mcp_router
 
-# Import configuration
-from shared.config import settings
 
 # Configure logging
 logging.basicConfig(
@@ -80,6 +84,29 @@ app.add_middleware(
 
 
 # Global exception handler
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    """
+    Handler for validation errors (422) - logs full details for debugging.
+    """
+    logger.error(f"Validation error on {request.url}")
+    logger.error(f"Request method: {request.method}")
+    logger.error(f"Validation errors: {exc.errors()}")
+    try:
+        body = await request.body()
+        logger.error(f"Request body: {body.decode('utf-8')}")
+    except Exception as e:
+        logger.error(f"Could not read request body: {e}")
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "detail": exc.errors(),
+            "body": str(exc.body) if hasattr(exc, 'body') else None
+        }
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     """
@@ -99,6 +126,8 @@ async def global_exception_handler(request: Request, exc: Exception):
 app.include_router(hotel_router, prefix="/api/v1")
 app.include_router(transport_router, prefix="/api/v1")
 app.include_router(coordinator_router, prefix="/api/v1")
+app.include_router(food_router, prefix="/api/v1")
+app.include_router(mcp_router, prefix="/api/v1")
 
 
 @app.get("/")
@@ -122,7 +151,17 @@ async def root():
             "coordinator": {
                 "status": "active",
                 "endpoint": "/api/v1/coordinate"
+            },
+            "foodie": {
+                "status": "active",
+                "endpoint": "/api/v1/food"
             }
+        },
+        "mcp": {
+            "endpoint": "/api/v1/mcp",
+            "server_url": settings.mcp_server_url,
+            "tools": "/api/v1/mcp/tools",
+            "health": "/api/v1/mcp/health"
         },
         "environment": settings.environment,
         "mock_mode": settings.use_mock_responses
@@ -163,8 +202,20 @@ async def api_info():
             },
             "coordinator": {
                 "coordinate": "POST /api/v1/coordinate",
+                "nearby_places": "POST /api/v1/coordinate/nearby-places",
                 "health": "GET /api/v1/coordinate/health",
                 "description": "Coordinate multi-agent travel planning"
+            },
+            "food": {
+                "search": "POST /api/v1/food/search",
+                "nearby_places": "POST /api/v1/food/nearby-places",
+                "health": "GET /api/v1/food/health",
+                "description": "Food recommendations and nearby restaurants"
+            },
+            "mcp": {
+                "tools": "GET /api/v1/mcp/tools",
+                "health": "GET /api/v1/mcp/health",
+                "description": "MCP server tools and connectivity"
             }
         },
         "technologies": [
@@ -172,6 +223,7 @@ async def api_info():
             "LangChain",
             "LangGraph",
             "OpenAI",
+            "FastMCP (Model Context Protocol)",
             "Python 3.11"
         ]
     }
