@@ -90,5 +90,5 @@ async def health_check():
     return {
         "status": "healthy",
         "agent": "hotel",
-        "service": "python-agents"
+        "service": "python_agents"
     }

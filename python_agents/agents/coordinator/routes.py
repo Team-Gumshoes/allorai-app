@@ -132,6 +132,6 @@ async def health_check():
     return {
         "status": "healthy",
         "agent": "coordinator",
-        "service": "python-agents",
+        "service": "python_agents",
         "capabilities": ["flight_delegation", "hotel_search", "transport_search", "multi_agent_coordination", "nearby_places"]
     }

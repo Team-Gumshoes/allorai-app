@@ -10,7 +10,7 @@ from langsmith import Client
 from langsmith.evaluation import evaluate, LangChainStringEvaluator
 from langchain_openai import ChatOpenAI
 
-from shared.config import settings
+from python_agents.shared.config import settings
 from agents.food.agent import FoodAgent, FOODIE_SYSTEM_PROMPT
 
 logger = logging.getLogger(__name__)

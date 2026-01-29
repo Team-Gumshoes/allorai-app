@@ -264,4 +264,3 @@ async def run_evaluation(request: EvalRequest, background_tasks: BackgroundTasks
     except Exception as e:
         logger.error(f"Error running evaluation: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
-

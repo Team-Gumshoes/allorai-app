@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     )
 
     # Service configuration
-    service_name: str = "python-agents"
+    service_name: str = "python_agents"
     service_port: int = 3001
     environment: str = "development"
 
@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     # LangChain/LangSmith configuration
     langchain_tracing_v2: bool = False
     langchain_api_key: Optional[str] = None
-    langchain_project: str = "allorai-python-agents"
+    langchain_project: str = "allorai-python_agents"
     langsmith_api_key: Optional[str] = None
     langsmith_tracing: bool = False
     langsmith_project: Optional[str] = None

@@ -2,9 +2,17 @@
 
 A Python-based AI agents service built with FastAPI and LangChain.
 
+## to run using docker compose 
+run `docker-compose up --build`
+
+## test 
+after running the docker compose run, 
+hit this endpoint to test if the fast api service is up and running:
+`http://0.0.0.0:3001/api/v1/info`
+
 ## Configuration
 
-The service uses [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) for configuration management.
+The service uses [pydantic-settings](https://docs.pydantic.dev/latest/concepts/pydantic_settings/) for configuration management. please create a .env file in the root directory of the project to set environment variables.
 
 ### Load Priority
 
@@ -85,17 +93,6 @@ export OPENAI_API_KEY=sk-proj-xxxxx
 export ENVIRONMENT=production
 ```
 
-#### Option 3: Docker / Docker Compose
-
-```yaml
-services:
-  python-agents:
-    build: .
-    environment:
-      - OPENAI_API_KEY=sk-proj-xxxxx
-      - ENVIRONMENT=production
-      - USE_MOCK_RESPONSES=false
-```
 
 ## Running the Service
 
