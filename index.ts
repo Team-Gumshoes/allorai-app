@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { runManager } from "./agents/managerAgent/index.js";
+import { graph } from "./graph/index.js";
 import type { BaseMessage } from "@langchain/core/messages";
 import { HumanMessage } from "@langchain/core/messages";
 import { colorize } from "./utils/colors.js";
@@ -26,22 +26,20 @@ let conversation: BaseMessage[] = [];
   const spinner = new Spinner("Starting");
   spinner.start();
 
-  const result = await runManager(conversation);
+  const result = await graph.invoke({ messages: conversation });
 
   spinner.stop();
 
-  if (result.type === "final") {
-    // Only print NEW messages (not already in conversation)
-    const newMessages = result.message.slice(conversation.length);
-    // Only print AI messages (skip tool messages)
-    newMessages
-      .filter((m) => m.type === "ai")
-      .forEach((m) => {
-        console.log(colorize(m.content as string));
-      });
-    // Add all messages to conversation
-    conversation.push(...result.message);
-  }
+  // Only print NEW messages (not already in conversation)
+  const newMessages = result.messages.slice(conversation.length);
+  // Only print AI messages (skip tool messages)
+  newMessages
+    .filter((m: BaseMessage) => m.type === "ai")
+    .forEach((m: BaseMessage) => {
+      console.log(colorize(m.content as string));
+    });
+  // Update conversation with all messages
+  conversation = result.messages;
 
   promptUser();
 })();
@@ -60,23 +58,21 @@ function promptUser() {
     spinner.start();
 
     const conversationLengthBefore = conversation.length;
-    const result = await runManager(conversation);
+    const result = await graph.invoke({ messages: conversation });
 
     // Stop spinner before printing response
     spinner.stop();
 
-    if (result.type === "final") {
-      // Only print NEW messages (not already in conversation)
-      const newMessages = result.message.slice(conversationLengthBefore);
-      // Only print AI messages (skip tool messages)
-      newMessages
-        .filter((m) => m.type === "ai")
-        .forEach((m) => {
-          console.log(colorize(m.content as string));
-        });
-      // Add all messages to conversation
-      conversation.push(...result.message);
-    }
+    // Only print NEW messages (not already in conversation)
+    const newMessages = result.messages.slice(conversationLengthBefore);
+    // Only print AI messages (skip tool messages)
+    newMessages
+      .filter((m: BaseMessage) => m.type === "ai")
+      .forEach((m: BaseMessage) => {
+        console.log(colorize(m.content as string));
+      });
+    // Update conversation with all messages
+    conversation = result.messages;
 
     promptUser();
   });
