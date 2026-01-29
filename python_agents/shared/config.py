@@ -41,7 +41,7 @@ class Settings(BaseSettings):
     typescript_agents_url: str = "http://typescript-agents:3002"
     hotel_api_url: str = "https://api.hotels.com"
     transport_api_url: str = "https://api.transport.com"
-    mcp_server_url: str = "http://127.0.0.1:8001/mcp" ##todo configure to have dynamic setup
+    mcp_server_url: str = f"http://{os.getenv('MCP_SERVER_HOST', '127.0.0.1')}:{os.getenv('MCP_SERVER_PORT', '8001')}/mcp" ##todo fix docker compose setup for mcp
 
     # LangChain/LangSmith configuration
     langchain_tracing_v2: bool = False
