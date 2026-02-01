@@ -53,3 +53,8 @@ tmp/
 # NX
 .nx/cache
 .nx/workspace-data
+/mcp-server/mcp_server.egg-info/dependency_links.txt
+/mcp-server/mcp_server.egg-info/PKG-INFO
+/mcp-server/mcp_server.egg-info/requires.txt
+/mcp-server/mcp_server.egg-info/SOURCES.txt
+/mcp-server/mcp_server.egg-info/top_level.txt

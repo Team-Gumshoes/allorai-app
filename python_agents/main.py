@@ -14,18 +14,6 @@ Available agents:
 
 The coordinator can delegate to the TypeScript flight agent via HTTP.
 """
-# main.py - Add at the top temporarily
-import sys
-import os
-
-print("=" * 50)
-print("Python path:", sys.path)
-print("Current directory:", os.getcwd())
-print("Files in /app:", os.listdir('/app'))
-print("Files in /app/shared:", os.listdir('/app/shared'))
-print("=" * 50)
-
-# Then your imports
 from shared.config import settings
 # Import configuration FIRST to load .env before any LangChain imports
 from shared.config import settings
