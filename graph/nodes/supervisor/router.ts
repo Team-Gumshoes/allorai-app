@@ -1,12 +1,12 @@
-import { classifyIntent } from "../../agents/managerAgent/classifyIntent.js";
-import type { AgentStateType } from "../state.js";
+import { classifyIntent } from "./utils/classifyIntent.js";
+import type { AgentStateType } from "../../state.js";
 
 /**
  * Router node that classifies the user's intent.
  * Uses the existing classifyIntent function to determine which agent to route to.
  */
 export async function routerNode(
-  state: AgentStateType
+  state: AgentStateType,
 ): Promise<Partial<AgentStateType>> {
   const intent = await classifyIntent(state.messages);
   return { intent };

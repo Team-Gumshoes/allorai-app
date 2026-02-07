@@ -5,7 +5,7 @@ import type {
   FlightResults,
   FlightLeg,
   FlightSegment,
-} from "../../types/flights.js";
+} from "../../types/flight/flights.js";
 
 /**
  * IMPORTANT:
@@ -14,7 +14,7 @@ import type {
  * - Tool NEVER reasons
  */
 
-export const findCheapestFlights = tool(
+export const searchFlights = tool(
   async ({
     originLocationCode,
     destinationLocationCode,
@@ -29,7 +29,7 @@ export const findCheapestFlights = tool(
     }
 
     const url = new URL(
-      "https://test.api.amadeus.com/v2/shopping/flight-offers"
+      "https://test.api.amadeus.com/v2/shopping/flight-offers",
     );
     url.searchParams.set("originLocationCode", originLocationCode);
     url.searchParams.set("destinationLocationCode", destinationLocationCode);
@@ -43,7 +43,7 @@ export const findCheapestFlights = tool(
     if (includedAirlinesCodes && includedAirlinesCodes.length > 0) {
       url.searchParams.set(
         "includedAirlinesCodes",
-        includedAirlinesCodes.join(",")
+        includedAirlinesCodes.join(","),
       );
     }
 
@@ -170,7 +170,7 @@ export const findCheapestFlights = tool(
     return JSON.stringify(allFlightResults); // Tool must always return a string
   },
   {
-    name: "findCheapestFlights",
+    name: "searchFlights",
     description: `
     Searches for the cheapest available round-trip flights between two airports.
 
@@ -194,30 +194,30 @@ export const findCheapestFlights = tool(
         .string()
         .length(3)
         .describe(
-          "REQUIRED: IATA airport code for departure (exactly 3 letters, e.g., JFK, LAX, ORD)"
+          "REQUIRED: IATA airport code for departure (exactly 3 letters, e.g., JFK, LAX, ORD)",
         ),
       destinationLocationCode: z
         .string()
         .length(3)
         .describe(
-          "REQUIRED: IATA airport code for destination (exactly 3 letters, e.g., LHR, CDG, NRT)"
+          "REQUIRED: IATA airport code for destination (exactly 3 letters, e.g., LHR, CDG, NRT)",
         ),
       departureDate: z
         .string()
         .describe(
-          "REQUIRED: Departure date in YYYY-MM-DD format (e.g., 2026-01-08)"
+          "REQUIRED: Departure date in YYYY-MM-DD format (e.g., 2026-01-08)",
         ),
       returnDate: z
         .string()
         .describe(
-          "REQUIRED: Return date in YYYY-MM-DD format (e.g., 2026-01-16)"
+          "REQUIRED: Return date in YYYY-MM-DD format (e.g., 2026-01-16)",
         ),
       includedAirlinesCodes: z
         .array(z.string().length(2))
         .optional()
         .describe(
-          "OPTIONAL: Array of 2-letter airline codes (e.g., ['AA', 'DL', 'UA'])"
+          "OPTIONAL: Array of 2-letter airline codes (e.g., ['AA', 'DL', 'UA'])",
         ),
     }),
-  }
+  },
 );

@@ -4,7 +4,7 @@ import type {
   FlightLeg,
   FlightResults,
   FlightSegment,
-} from "../types/flights.js";
+} from "../types/flight/flights.js";
 
 const findFlights = async () => {
   const token = process.env.AMADEUS_API_TOKEN;
@@ -40,7 +40,7 @@ const findFlights = async () => {
   if (!response.ok) {
     const text = await response.text();
     throw new Error(
-      `Flight API error: ${response.status} ${response.statusText} ${text}`
+      `Flight API error: ${response.status} ${response.statusText} ${text}`,
     );
   }
 

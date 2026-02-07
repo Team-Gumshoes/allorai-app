@@ -1,4 +1,3 @@
-// import { OpenAI } from "@langchain/openai";
 import { ChatOpenAI } from "@langchain/openai";
 
 // Creates a model using OpenAI

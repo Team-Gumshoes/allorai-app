@@ -1,6 +1,7 @@
 {
   "scripts": {
-    "prompt": "tsx index.ts"
+    "start": "tsx index.ts",
+    "dev": "tsx watch index.ts"
   },
   "type": "module",
   "dependencies": {
@@ -11,9 +12,11 @@
     "@langchain/ollama": "^1.1.0",
     "@langchain/openai": "^1.2.0",
     "dotenv": "^17.2.3",
+    "express": "^5.2.1",
     "zod": "^4.2.1"
   },
   "devDependencies": {
+    "@types/express": "^5.0.6",
     "@types/node": "^25.0.3",
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",

@@ -6,10 +6,10 @@ import type { AgentStateType } from "../state.js";
  * Returns a friendly message directing users to supported capabilities.
  */
 export async function unsupportedNode(
-  state: AgentStateType
+  state: AgentStateType,
 ): Promise<Partial<AgentStateType>> {
   const message = new AIMessage(
-    "I can help with arithmetic (add, subtract, multiply, divide) or searching for flights. What would you like to do?"
+    "I can only help with helping you plan a trip. What would you like to do?",
   );
 
   return { messages: [...state.messages, message] };

@@ -3,13 +3,15 @@ import {
   HumanMessage,
   SystemMessage,
 } from "@langchain/core/messages";
-import type { FlightResults } from "../../../types/flights.js";
+// import type { FlightResults } from "../../../types/flights.js";
+import type { FlightResults } from "../../../../types/flight/flights.js";
 // import { callLlm } from "../callLlm.js";
-import { model } from "../../../models/gemini.js";
+// import { model } from "../../../models/gemini.js";
+import { model } from "../../../../models/gemini.js";
 
 export async function summarizeFlights(
   flights: FlightResults[],
-  input: BaseMessage[]
+  input: BaseMessage[],
 ): Promise<string> {
   // Get all user messages
   const userMessages = input

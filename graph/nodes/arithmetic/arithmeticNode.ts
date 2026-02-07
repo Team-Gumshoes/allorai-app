@@ -1,8 +1,9 @@
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { SystemMessage } from "@langchain/core/messages";
-import { model } from "../../models/openAi.js";
-import { arithmeticTools } from "../../agents/arithmeticAgent/tools.js";
-import type { AgentStateType } from "../state.js";
+import { model } from "../../../models/openAi.js";
+import { arithmeticTools } from "./tools.js";
+import { extractLastToolJson } from "../../../utils/agents/extractLastToolJson.js";
+import type { AgentStateType } from "../../state.js";
 
 const arithmeticSystemPrompt = `
 You are a helpful arithmetic assistant.
@@ -40,6 +41,26 @@ const arithmeticAgent = createReactAgent({
 export async function arithmeticNode(
   state: AgentStateType,
 ): Promise<Partial<AgentStateType>> {
+  const inputMessageCount = state.messages.length;
   const result = await arithmeticAgent.invoke({ messages: state.messages });
-  return { messages: result.messages };
+
+  // Check if tools were called THIS turn by looking at new messages only
+  const newMessages = result.messages.slice(inputMessageCount);
+  const toolsCalledThisTurn = newMessages.some((m) => m.type === "tool");
+
+  // If no tools were called, the agent is asking for clarification
+  if (!toolsCalledThisTurn) {
+    return { messages: result.messages };
+  }
+
+  // Extract the arithmetic result from the last tool call
+  const value = extractLastToolJson<number>(result.messages);
+
+  return {
+    messages: result.messages,
+    data: {
+      type: "arithmetic",
+      options: { value },
+    },
+  };
 }

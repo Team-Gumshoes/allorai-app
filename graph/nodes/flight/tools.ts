@@ -1,7 +1,7 @@
-import { findCheapestFlights } from "../../tools/travel/findCheapestFlights.js";
+import { searchFlights } from "../../../tools/travel/searchFlights.js";
 
 export const flightToolsByName = {
-  findCheapestFlights,
+  searchFlights,
 };
 
 export type FlightToolName = keyof typeof flightToolsByName;

@@ -1,5 +1,5 @@
-import { extractLastToolJson } from "../../../utils/agents/extractLastToolJson.js";
-import type { FlightResults } from "../../../types/flights.js";
+import { extractLastToolJson } from "../../../../utils/agents/extractLastToolJson.js";
+import type { FlightResults } from "../../../../types/flight/flights.js";
 import { BaseMessage } from "@langchain/core/messages";
 
 export function formatFlights(messages: BaseMessage[]): string {

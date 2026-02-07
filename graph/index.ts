@@ -1,8 +1,8 @@
 import { StateGraph, START, END } from "@langchain/langgraph";
 import { AgentState } from "./state.js";
-import { routerNode, routeByIntent } from "./nodes/router.js";
-import { arithmeticNode } from "./nodes/arithmeticNode.js";
-import { flightNode } from "./nodes/flightNode.js";
+import { routerNode, routeByIntent } from "./nodes/supervisor/router.js";
+import { arithmeticNode } from "./nodes/arithmetic/arithmeticNode.js";
+import { flightNode } from "./nodes/flight/flightNode.js";
 import { unsupportedNode } from "./nodes/unsupportedNode.js";
 
 /**
