@@ -24,6 +24,7 @@ export async function classifyIntent(messages: BaseMessage[]): Promise<Intent> {
     Classify the user's LATEST request into exactly ONE of the following categories:
     - arithmetic: simple math involving two numbers (add, subtract, multiply, divide)
     - flights: getting flight data between two locations
+    - restaurant: finding restaurants, food, or dining recommendations at a destination
     - unsupported: anything else
 
     CRITICAL: Consider the conversation history context.
@@ -47,6 +48,11 @@ export async function classifyIntent(messages: BaseMessage[]): Promise<Intent> {
       User: "Find flights"
       → "flights" (NEW request, not a follow-up)
 
+      User: "Find restaurants in Tokyo"
+      Assistant: "What kind of cuisine are you interested in?"
+      User: "Italian"
+      → "restaurant" (answering restaurant question)
+
     Rules:
     - Return JSON ONLY
     - No explanations
@@ -55,6 +61,7 @@ export async function classifyIntent(messages: BaseMessage[]): Promise<Intent> {
     Example outputs:
     { "intent": "arithmetic" }
     { "intent": "flights" }
+    { "intent": "restaurant" }
     { "intent": "unsupported" }
     `),
     ...recentMessages,
