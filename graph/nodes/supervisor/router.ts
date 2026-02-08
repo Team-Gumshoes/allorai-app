@@ -29,6 +29,8 @@ export function routeByIntent(state: AgentStateType): string {
       return "arithmeticAgent";
     case "flights":
       return "flightAgent";
+    case "restaurant":
+      return "restaurantAgent";
     default:
       return "unsupportedNode";
   }
