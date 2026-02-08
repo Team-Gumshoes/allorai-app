@@ -3,11 +3,7 @@ import express from "express";
 import { graph } from "./graph/index.js";
 import type { BaseMessage } from "@langchain/core/messages";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
-import type {
-  ChatRequest,
-  ChatResponse,
-  Message,
-} from "./types/api.js";
+import type { ChatRequest, ChatResponse, Message } from "./types/api.js";
 import { createEmptyTrip } from "./types/trip.js";
 
 type Request = express.Request;
@@ -24,15 +20,15 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   const start = Date.now();
   console.log(`[${new Date().toISOString()}] --> ${req.method} ${req.path}`);
 
+  if (req.body && Object.keys(req.body).length > 0) {
+    console.log("Request body:", req.body);
+  }
+
   res.on("finish", () => {
     const duration = Date.now() - start;
     console.log(
       `[${new Date().toISOString()}] <-- ${req.method} ${req.path} ${res.statusCode} (${duration}ms)`,
     );
-
-    if (req.body && Object.keys(req.body).length > 0) {
-      console.log("Request body:", req.body);
-    }
   });
 
   next();
@@ -46,14 +42,16 @@ function toMessages(messages: BaseMessage[]): Message[] {
   return messages
     .map((m) => ({
       type: m.getType() as "human" | "ai",
-      content: typeof m.content === "string" ? m.content : JSON.stringify(m.content),
+      content:
+        typeof m.content === "string" ? m.content : JSON.stringify(m.content),
     }))
     .filter((m): m is Message => m.type === "human" || m.type === "ai");
 }
 
 function filterForClient(messages: Message[]): Message[] {
   return messages.filter((m) => {
-    if (m.type === "ai" && (!m.content || m.content.trim() === "")) return false;
+    if (m.type === "ai" && (!m.content || m.content.trim() === ""))
+      return false;
     return true;
   });
 }
