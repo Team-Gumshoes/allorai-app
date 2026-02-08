@@ -24,6 +24,7 @@ export async function classifyIntent(messages: BaseMessage[]): Promise<Intent> {
     Classify the user's LATEST request into exactly ONE of the following categories:
     - arithmetic: simple math involving two numbers (add, subtract, multiply, divide)
     - flights: getting flight data between two locations
+    - hotel: finding hotels, lodging, or accommodation at a destination
     - restaurant: finding restaurants, food, or dining recommendations at a destination
     - unsupported: anything else
 
@@ -48,6 +49,11 @@ export async function classifyIntent(messages: BaseMessage[]): Promise<Intent> {
       User: "Find flights"
       → "flights" (NEW request, not a follow-up)
 
+      User: "Find hotels in Paris"
+      Assistant: "What's your budget?"
+      User: "Around $200/night"
+      → "hotel" (answering hotel question)
+
       User: "Find restaurants in Tokyo"
       Assistant: "What kind of cuisine are you interested in?"
       User: "Italian"
@@ -61,6 +67,7 @@ export async function classifyIntent(messages: BaseMessage[]): Promise<Intent> {
     Example outputs:
     { "intent": "arithmetic" }
     { "intent": "flights" }
+    { "intent": "hotel" }
     { "intent": "restaurant" }
     { "intent": "unsupported" }
     `),
