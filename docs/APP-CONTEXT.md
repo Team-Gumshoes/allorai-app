@@ -4,19 +4,27 @@ A trip planning application built with LangChain's LangGraph technology, impleme
 
 ## Architecture Overview
 
-This application uses a **supervisor pattern** where a central supervisor agent analyzes user intent and routes requests to specialized agents. Each agent operates as a separate node in the graph with access to domain-specific tools.
+This application uses a **supervisor pattern** where a central supervisor agent analyzes user intent and routes requests to specialized agents. Each agent operates as a separate node in the graph with access to domain-specific tools or the generator function for LLM-generated data.
 
 ```
-START → Router → [Arithmetic Agent | Flight Agent | Unsupported Node] → END
+START -> Router -> [Arithmetic Agent | Flight Agent | Restaurant Agent | Unsupported Node] -> END
 ```
+
+### Two Agent Patterns
+
+The system supports two types of agent nodes:
+
+1. **Tool-based agents** use `createReactAgent` from LangGraph with external API tools. The arithmetic and flight agents follow this pattern.
+2. **Generator-based agents** use direct `model.invoke()` calls for conversation and the `generator()` utility for data generation. This is for agents without third-party API integrations. The restaurant agent follows this pattern.
 
 ### Current Agents
 
-| Agent       | Purpose                                                 | Tools                           |
-| ----------- | ------------------------------------------------------- | ------------------------------- |
-| Arithmetic  | Basic math operations (+, -, \*, /) between two numbers | add, subtract, multiply, divide |
-| Flight      | Flight search using Amadeus API                         | searchFlights                   |
-| Unsupported | Fallback for unrecognized requests                      | None                            |
+| Agent       | Purpose                                                 | Pattern   | Tools/Data Source           |
+| ----------- | ------------------------------------------------------- | --------- | --------------------------- |
+| Arithmetic  | Basic math operations (+, -, \*, /) between two numbers | Tool      | add, subtract, multiply, divide |
+| Flight      | Flight search using Amadeus API                         | Tool      | searchFlights               |
+| Restaurant  | Restaurant recommendations based on Trip context        | Generator | generator()                 |
+| Unsupported | Fallback for unrecognized requests                      | None      | None                        |
 
 ## Graph Structure
 
@@ -27,11 +35,13 @@ const workflow = new StateGraph(AgentState)
   .addNode("router", routerNode)
   .addNode("arithmeticAgent", arithmeticNode)
   .addNode("flightAgent", flightNode)
+  .addNode("restaurantAgent", restaurantNode)
   .addNode("unsupportedNode", unsupportedNode)
   .addEdge(START, "router")
   .addConditionalEdges("router", routeByIntent)
   .addEdge("arithmeticAgent", END)
   .addEdge("flightAgent", END)
+  .addEdge("restaurantAgent", END)
   .addEdge("unsupportedNode", END);
 
 export const graph = workflow.compile();
@@ -64,7 +74,7 @@ export const AgentState = Annotation.Root({
 | `messages` | `BaseMessage[]`        | Conversation history (from MessagesAnnotation)           |
 | `intent`   | `Intent \| null`       | Classified intent for routing                            |
 | `trip`     | `Trip`                 | Trip planning context (origin, destination, dates, etc.) |
-| `data`     | `ResponseData \| null` | Extracted data from tool calls                           |
+| `data`     | `ResponseData \| null` | Extracted data from tool calls or generator              |
 
 ## Agents
 
@@ -83,7 +93,7 @@ The router classifies user intent and determines which agent should handle the r
 
 - Examines the last 6 messages (3 conversation turns) for context
 - Handles follow-up questions intelligently (maintains intent during clarification)
-- Returns one of: `arithmetic`, `flights`, or `unsupported`
+- Returns one of: `arithmetic`, `flights`, `restaurant`, or `unsupported`
 
 ```typescript
 export function routeByIntent(state: AgentStateType): string {
@@ -92,6 +102,8 @@ export function routeByIntent(state: AgentStateType): string {
       return "arithmeticAgent";
     case "flights":
       return "flightAgent";
+    case "restaurant":
+      return "restaurantAgent";
     default:
       return "unsupportedNode";
   }
@@ -158,11 +170,91 @@ The flight agent builds a context-aware system prompt that includes current trip
 **Post-Processing:**
 After fetching flight data, the agent uses `summarizeFlights()` to generate a human-readable summary using a separate LLM call (Gemini model).
 
+### Restaurant Agent
+
+**Location:** `graph/nodes/restaurant/`
+
+Generates restaurant recommendations using the generator function. This agent does not use `createReactAgent` or external APIs.
+
+**Files:**
+
+- `restaurantNode.ts` - Agent node implementation
+
+**How it works:**
+
+The restaurant node follows a two-phase approach:
+
+1. **Phase 1 -- Check context:** Validates that `trip.destination` exists. If missing, uses `model.invoke()` to ask the user for it.
+2. **Phase 2 -- Generate data:** Creates 3 `RestaurantResults` templates with all fields set to `null`, passes them to `generator()` with Trip context (destination, hotel, budget, interests, constraints), then generates a conversational summary.
+
+**Why not `createReactAgent`:** `createReactAgent` requires a non-empty tools array. Since the restaurant agent has no external API, it uses direct `model.invoke()` calls for conversation and the `generator()` utility for data production.
+
+**Context passed to generator:**
+
+```typescript
+function buildTripContext(trip: Trip): Record<string, unknown> {
+  return {
+    destination: trip.destination,
+    origin: trip.origin,
+    budget: trip.budget,
+    hotel: trip.hotel,
+    interests: trip.interests,
+    constraints: trip.constraints,
+  };
+}
+```
+
+**Response data type:**
+
+```typescript
+export interface RestaurantResponseData {
+  type: "restaurant";
+  summary?: string;
+  options?: RestaurantResults[];
+}
+```
+
 ### Unsupported Node
 
 **Location:** `graph/nodes/unsupportedNode.ts`
 
 Simple fallback handler that returns a friendly message when the user's request doesn't match any supported intent.
+
+## Generator Function
+
+**Location:** `utils/agents/generator.ts`
+
+A generic utility that calls an LLM to fill `null` values in JSON data with contextually appropriate values. Used by agents that need LLM-generated data instead of (or in addition to) third-party API data.
+
+### Function Signature
+
+```typescript
+export async function generator<T extends object>(
+  options: GeneratorOptions<T>,
+): Promise<T[]>
+```
+
+### GeneratorOptions
+
+| Field         | Type                      | Description                                                     |
+| ------------- | ------------------------- | --------------------------------------------------------------- |
+| `data`        | `T \| T[]`                | Template(s) with null values to fill. Non-null values preserved. |
+| `context`     | `Record<string, unknown>` | Contextual information for realistic generation.                 |
+| `description` | `string`                  | Natural language description of what data to generate.           |
+
+### Behavior
+
+1. Normalizes input to an array.
+2. Scans for null fields and lists them in the LLM prompt.
+3. Calls `model.invoke()` with system + human messages.
+4. Parses JSON response (with markdown code fence fallback).
+5. Defensively preserves non-null values from the original template.
+6. Always returns `T[]`.
+
+### Use Cases
+
+- **All fields null (placeholder data):** The restaurant agent creates templates where every field is null and the generator fills all of them based on Trip context.
+- **Partial null fields (supplementing API data):** An agent fetches data from an API but some fields come back as null. The generator fills only the missing fields while preserving existing data.
 
 ## Tools
 
@@ -173,7 +265,6 @@ Tools are functions that agents can invoke to perform specific actions. They are
 Tools are stored in the `tools/` folder and imported into agent-specific `tools.ts` files:
 
 ```typescript
-// tools/arithmetic/add.ts
 import { tool } from "@langchain/core/tools";
 import * as z from "zod";
 
@@ -196,7 +287,6 @@ export const add = tool(({ a, b }) => a + b, {
 Each agent has a `tools.ts` file that collects and exports tools:
 
 ```typescript
-// graph/nodes/arithmetic/tools.ts
 import { add } from "../../../tools/arithmetic/add.js";
 import { subtract } from "../../../tools/arithmetic/subtract.js";
 import { multiply } from "../../../tools/arithmetic/multiply.js";
@@ -251,7 +341,10 @@ export interface ChatResponse {
 The `ResponseData` type is a discriminated union that supports different agent response types:
 
 ```typescript
-export type ResponseData = ArithmeticResponseData | FlightResponseData;
+export type ResponseData =
+  | ArithmeticResponseData
+  | FlightResponseData
+  | RestaurantResponseData;
 
 export interface ArithmeticResponseData {
   type: "arithmetic";
@@ -263,6 +356,12 @@ export interface FlightResponseData {
   type: "flight";
   summary?: string;
   options?: FlightResults[];
+}
+
+export interface RestaurantResponseData {
+  type: "restaurant";
+  summary?: string;
+  options?: RestaurantResults[];
 }
 ```
 
@@ -290,7 +389,19 @@ export interface Trip {
 **Location:** `types/intents.ts`
 
 ```typescript
-export type Intent = "arithmetic" | "flights" | "unsupported";
+export type Intent = "arithmetic" | "flights" | "restaurant" | "unsupported";
+```
+
+### Restaurant Types
+
+**Location:** `types/restaurant/restaurants.ts`
+
+```typescript
+export interface RestaurantResults {
+  name: string;
+  location: string;
+  cuisine: string;
+}
 ```
 
 ## API Server
@@ -408,6 +519,8 @@ multi-agent-example/
 │       │   ├── tools.ts
 │       │   └── utils/
 │       │       └── summarizeFlights.ts
+│       ├── restaurant/
+│       │   └── restaurantNode.ts
 │       ├── supervisor/
 │       │   ├── router.ts
 │       │   └── utils/
@@ -431,11 +544,16 @@ multi-agent-example/
 │   ├── trip.ts
 │   ├── arithmetic/
 │   │   └── arithmetic.ts
-│   └── flight/
-│       └── flights.ts
+│   ├── flight/
+│   │   └── flights.ts
+│   └── restaurant/
+│       └── restaurants.ts
 ├── utils/
 │   └── agents/
-│       └── extractLastToolJson.ts
+│       ├── extractLastToolJson.ts
+│       └── generator.ts
+├── docs/
+│   └── APP-CONTEXT.md
 └── index.ts                  # Express server
 ```
 
