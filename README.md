@@ -16,6 +16,7 @@ An Express server that uses LangChain's LangGraph to build AI agents with a supe
   - [Arithmetic Agent](#arithmetic-agent)
   - [Flight Agent](#flight-agent)
   - [Restaurant Agent](#restaurant-agent)
+  - [Hotel Agent](#hotel-agent)
 - [Generator Function](#generator-function)
   - [Overview](#overview)
   - [Usage](#usage)
@@ -35,6 +36,7 @@ An Express server that uses LangChain's LangGraph to build AI agents with a supe
 - **Arithmetic Agent**: Basic math operations (+, -, \*, /) between two numbers
 - **Flight Agent**: Search for round-trip flights using the Amadeus API
 - **Restaurant Agent**: LLM-generated restaurant recommendations using the generator function
+- **Hotel Agent**: LLM-generated hotel recommendations using the generator function
 - **Generator Function**: Generic utility that fills null values in JSON data using LLM context
 - **Multiple LLM Support**: OpenAI, Google Gemini, or local Ollama models
 - **Extensible**: Easy to add new agents with custom tools or LLM-generated data
@@ -42,7 +44,7 @@ An Express server that uses LangChain's LangGraph to build AI agents with a supe
 ## Architecture
 
 ```
-START -> Router -> [Arithmetic Agent | Flight Agent | Restaurant Agent | Unsupported] -> END
+START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant Agent | Unsupported] -> END
 ```
 
 The router classifies user intent and directs the request to the appropriate agent. Each agent has access to domain-specific tools and can engage in multi-turn conversations to gather required information. Agents without tools can use the generator function to produce LLM-generated data instead.
@@ -173,6 +175,42 @@ Generates restaurant recommendations using the generator function instead of ext
 }
 ```
 
+### Hotel Agent
+
+**Location:** `graph/nodes/hotel/`
+
+Generates hotel recommendations using the generator function. Follows the same generator-based pattern as the restaurant agent.
+
+**How it works:**
+
+1. Checks if the Trip has a `destination`. If missing, it asks the user for one using a direct `model.invoke()` call.
+2. Once a destination is available, it creates a template array of 5 `HotelResults` objects with all fields set to `null`.
+3. Passes the templates and Trip context to the `generator()` function, which fills in the null values with contextually appropriate hotel data.
+4. Generates a conversational summary of the recommendations via a second LLM call.
+5. Returns both the summary message and the structured `HotelResponseData`.
+
+**Example request:**
+
+```json
+{
+  "messages": [
+    { "type": "human", "content": "Find me some hotels" }
+  ],
+  "trip": {
+    "origin": "New York",
+    "destination": "Tokyo",
+    "departureFlight": null,
+    "returnFlight": null,
+    "departureDate": "2026-02-10",
+    "returnDate": "2026-02-15",
+    "budget": 3000,
+    "hotel": null,
+    "interests": ["sightseeing"],
+    "constraints": []
+  }
+}
+```
+
 ## Generator Function
 
 ### Overview
@@ -288,7 +326,7 @@ Follow these steps to add a new agent that connects to an external API or uses t
 Update `types/intents.ts`:
 
 ```typescript
-export type Intent = "arithmetic" | "flights" | "restaurant" | "hotels" | "unsupported";
+export type Intent = "arithmetic" | "flights" | "hotel" | "restaurant" | "unsupported";
 ```
 
 #### 2. Update Intent Classifier
@@ -300,7 +338,7 @@ Modify the system prompt in `graph/nodes/supervisor/utils/classifyIntent.ts` to 
 Update `graph/nodes/supervisor/router.ts`:
 
 ```typescript
-case "hotels":
+case "hotel":
   return "hotelAgent";
 ```
 
@@ -376,8 +414,8 @@ export interface HotelResponseData {
 export type ResponseData =
   | ArithmeticResponseData
   | FlightResponseData
-  | RestaurantResponseData
-  | HotelResponseData;
+  | HotelResponseData
+  | RestaurantResponseData;
 ```
 
 #### 7. Wire Into Graph
@@ -394,7 +432,7 @@ import { hotelNode } from "./nodes/hotel/hotelNode.js";
 
 ### Adding a New Agent without Tools
 
-For agents that don't have an external API, use the generator function instead of `createReactAgent`. The restaurant agent (`graph/nodes/restaurant/restaurantNode.ts`) is the reference implementation for this pattern.
+For agents that don't have an external API, use the generator function instead of `createReactAgent`. The restaurant agent (`graph/nodes/restaurant/restaurantNode.ts`) and hotel agent (`graph/nodes/hotel/hotelNode.ts`) are reference implementations for this pattern.
 
 #### Key differences from tool-based agents:
 
@@ -454,6 +492,7 @@ multi-agent-example/
 │   └── nodes/
 │       ├── arithmetic/       # Arithmetic agent (tool-based)
 │       ├── flight/           # Flight agent (tool-based)
+│       ├── hotel/            # Hotel agent (generator-based)
 │       ├── restaurant/       # Restaurant agent (generator-based)
 │       ├── supervisor/       # Router and intent classification
 │       └── unsupportedNode.ts
