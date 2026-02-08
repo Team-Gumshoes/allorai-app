@@ -1,6 +1,7 @@
 import type { Trip } from "./trip.js";
 import type { ArithmeticResult } from "./arithmetic/arithmetic.js";
 import type { FlightResults } from "./flight/flights.js";
+import type { HotelResults } from "./hotel/hotels.js";
 import type { RestaurantResults } from "./restaurant/restaurants.js";
 
 export interface Message {
@@ -20,6 +21,12 @@ export interface FlightResponseData {
   options?: FlightResults[];
 }
 
+export interface HotelResponseData {
+  type: "hotel";
+  summary?: string;
+  options?: HotelResults[];
+}
+
 export interface RestaurantResponseData {
   type: "restaurant";
   summary?: string;
@@ -29,6 +36,7 @@ export interface RestaurantResponseData {
 export type ResponseData =
   | ArithmeticResponseData
   | FlightResponseData
+  | HotelResponseData
   | RestaurantResponseData;
 
 export interface ChatRequest {
