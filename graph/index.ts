@@ -3,13 +3,14 @@ import { AgentState } from "./state.js";
 import { routerNode, routeByIntent } from "./nodes/supervisor/router.js";
 import { arithmeticNode } from "./nodes/arithmetic/arithmeticNode.js";
 import { flightNode } from "./nodes/flight/flightNode.js";
+import { restaurantNode } from "./nodes/restaurant/restaurantNode.js";
 import { unsupportedNode } from "./nodes/unsupportedNode.js";
 
 /**
  * Multi-agent graph using LangGraph.
  *
  * Architecture:
- *   START -> router -> [arithmeticAgent | flightAgent | unsupportedNode] -> END
+ *   START -> router -> [arithmeticAgent | flightAgent | restaurantAgent | unsupportedNode] -> END
  *
  * The router classifies intent and routes to the appropriate agent node.
  * Each agent node handles its domain and returns updated messages.
@@ -26,12 +27,14 @@ const workflow = new StateGraph(AgentState)
   .addNode("router", routerNode)
   .addNode("arithmeticAgent", arithmeticNode)
   .addNode("flightAgent", flightNode)
+  .addNode("restaurantAgent", restaurantNode)
   .addNode("unsupportedNode", unsupportedNode)
   // Add edges
   .addEdge(START, "router")
   .addConditionalEdges("router", routeByIntent)
   .addEdge("arithmeticAgent", END)
   .addEdge("flightAgent", END)
+  .addEdge("restaurantAgent", END)
   .addEdge("unsupportedNode", END);
 
 export const graph = workflow.compile();
