@@ -702,9 +702,11 @@ multi-agent-example/
 │   └── sightseeing/
 │       └── sights.ts
 ├── utils/
-│   └── agents/
-│       ├── extractLastToolJson.ts
-│       └── generator.ts
+│   ├── agents/
+│   │   ├── extractLastToolJson.ts
+│   │   └── generator.ts
+│   └── amadeus/
+│       └── tokenManager.ts
 ├── docs/
 │   └── APP-CONTEXT.md
 └── index.ts                  # Express server
@@ -717,4 +719,6 @@ multi-agent-example/
 | `PORT`              | Server port (default: 8000)           |
 | `OPENAI_API_KEY`    | OpenAI API key                        |
 | `GOOGLE_API_KEY`    | Google Gemini API key                 |
-| `AMADEUS_API_TOKEN` | Amadeus API token for flight searches |
+| `AMADEUS_CLIENT_ID`     | Amadeus API client ID for OAuth2      |
+| `AMADEUS_CLIENT_SECRET` | Amadeus API client secret for OAuth2  |
+| `AMADEUS_GRANT_TYPE`    | Amadeus OAuth2 grant type             |
