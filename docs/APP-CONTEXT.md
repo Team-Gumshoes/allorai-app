@@ -7,7 +7,7 @@ A trip planning application built with LangChain's LangGraph technology, impleme
 This application uses a **supervisor pattern** where a central supervisor agent analyzes user intent and routes requests to specialized agents. Each agent operates as a separate node in the graph with access to domain-specific tools or the generator function for LLM-generated data.
 
 ```
-START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant Agent | Sightseeing Agent | Unsupported Node] -> END
+START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant Agent | Selfie Agent | Sightseeing Agent | Unsupported Node] -> END
 ```
 
 ### Two Agent Patterns
@@ -15,7 +15,7 @@ START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant A
 The system supports two types of agent nodes:
 
 1. **Tool-based agents** use `createReactAgent` from LangGraph with external API tools. The arithmetic and flight agents follow this pattern.
-2. **Generator-based agents** use direct `model.invoke()` calls for conversation and the `generator()` utility for data generation. This is for agents without third-party API integrations. The restaurant, hotel, and sightseeing agents follow this pattern.
+2. **Generator-based agents** use direct `model.invoke()` calls for conversation and the `generator()` utility for data generation. This is for agents without third-party API integrations. The restaurant, hotel, sightseeing, and selfie agents follow this pattern.
 
 ### Current Agents
 
@@ -26,6 +26,7 @@ The system supports two types of agent nodes:
 | Hotel       | Hotel recommendations based on Trip context             | Generator | generator()                 |
 | Restaurant  | Restaurant recommendations based on Trip context        | Generator | generator()                 |
 | Sightseeing | Sightseeing and attraction recommendations based on Trip context | Generator | generator()                 |
+| Selfie      | Selfie spot recommendations based on Trip context        | Generator | generator()                 |
 | Unsupported | Fallback for unrecognized requests                      | None      | None                        |
 
 ## Graph Structure
@@ -39,6 +40,7 @@ const workflow = new StateGraph(AgentState)
   .addNode("flightAgent", flightNode)
   .addNode("hotelAgent", hotelNode)
   .addNode("restaurantAgent", restaurantNode)
+  .addNode("selfieAgent", selfieNode)
   .addNode("sightseeingAgent", sightseeingNode)
   .addNode("unsupportedNode", unsupportedNode)
   .addEdge(START, "router")
@@ -47,6 +49,7 @@ const workflow = new StateGraph(AgentState)
   .addEdge("flightAgent", END)
   .addEdge("hotelAgent", END)
   .addEdge("restaurantAgent", END)
+  .addEdge("selfieAgent", END)
   .addEdge("sightseeingAgent", END)
   .addEdge("unsupportedNode", END);
 
@@ -99,7 +102,7 @@ The router classifies user intent and determines which agent should handle the r
 
 - Examines the last 6 messages (3 conversation turns) for context
 - Handles follow-up questions intelligently (maintains intent during clarification)
-- Returns one of: `arithmetic`, `flights`, `hotel`, `restaurant`, `sightseeing`, or `unsupported`
+- Returns one of: `arithmetic`, `flights`, `hotel`, `restaurant`, `selfie`, `sightseeing`, or `unsupported`
 
 ```typescript
 export function routeByIntent(state: AgentStateType): string {
@@ -112,6 +115,8 @@ export function routeByIntent(state: AgentStateType): string {
       return "hotelAgent";
     case "restaurant":
       return "restaurantAgent";
+    case "selfie":
+      return "selfieAgent";
     case "sightseeing":
       return "sightseeingAgent";
     default:
@@ -278,6 +283,33 @@ export interface SightseeingResponseData {
 }
 ```
 
+### Selfie Agent
+
+**Location:** `graph/nodes/selfie/`
+
+Generates selfie spot recommendations using the generator function. Follows the same generator-based pattern as the hotel, restaurant, and sightseeing agents.
+
+**Files:**
+
+- `selfieNode.ts` - Agent node implementation
+
+**How it works:**
+
+The selfie node follows the same two-phase approach as the other generator-based agents:
+
+1. **Phase 1 -- Check context:** Validates that `trip.destination` exists. If missing, uses `model.invoke()` to ask the user for it.
+2. **Phase 2 -- Generate data:** Creates 5 `SelfieSpots` templates with all fields set to `null`, passes them to `generator()` with Trip context (destination, hotel, budget, interests, constraints), then generates a conversational summary.
+
+**Response data type:**
+
+```typescript
+export interface SelfieResponseData {
+  type: "selfie";
+  summary?: string;
+  options?: SelfieSpots[];
+}
+```
+
 ### Unsupported Node
 
 **Location:** `graph/nodes/unsupportedNode.ts`
@@ -410,6 +442,7 @@ export type ResponseData =
   | FlightResponseData
   | HotelResponseData
   | RestaurantResponseData
+  | SelfieResponseData
   | SightseeingResponseData;
 
 export interface ArithmeticResponseData {
@@ -434,6 +467,12 @@ export interface RestaurantResponseData {
   type: "restaurant";
   summary?: string;
   options?: RestaurantResults[];
+}
+
+export interface SelfieResponseData {
+  type: "selfie";
+  summary?: string;
+  options?: SelfieSpots[];
 }
 
 export interface SightseeingResponseData {
@@ -467,7 +506,19 @@ export interface Trip {
 **Location:** `types/intents.ts`
 
 ```typescript
-export type Intent = "arithmetic" | "flights" | "hotel" | "restaurant" | "sightseeing" | "unsupported";
+export type Intent = "arithmetic" | "flights" | "hotel" | "restaurant" | "selfie" | "sightseeing" | "unsupported";
+```
+
+### Selfie Types
+
+**Location:** `types/selfie/selfieSpots.ts`
+
+```typescript
+export interface SelfieSpots {
+  name: string;
+  location: string;
+  description: string;
+}
 ```
 
 ### Restaurant Types
@@ -613,6 +664,8 @@ multi-agent-example/
 │       │   └── hotelNode.ts
 │       ├── restaurant/
 │       │   └── restaurantNode.ts
+│       ├── selfie/
+│       │   └── selfieNode.ts
 │       ├── sightseeing/
 │       │   └── sightseeingNode.ts
 │       ├── supervisor/
@@ -644,6 +697,8 @@ multi-agent-example/
 │   │   └── hotels.ts
 │   ├── restaurant/
 │   │   └── restaurants.ts
+│   ├── selfie/
+│   │   └── selfieSpots.ts
 │   └── sightseeing/
 │       └── sights.ts
 ├── utils/
