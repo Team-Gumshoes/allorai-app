@@ -1,4 +1,3 @@
-import "dotenv/config";
 import { tool } from "@langchain/core/tools";
 import * as z from "zod";
 import type {
@@ -6,6 +5,7 @@ import type {
   FlightLeg,
   FlightSegment,
 } from "../../types/flight/flights.js";
+import { getAmadeusToken } from "../../utils/amadeus/tokenManager.js";
 
 /**
  * IMPORTANT:
@@ -22,11 +22,7 @@ export const searchFlights = tool(
     returnDate,
     includedAirlinesCodes,
   }) => {
-    const token = process.env.AMADEUS_API_TOKEN;
-
-    if (!token) {
-      throw new Error("Missing FLIGHT_API_TOKEN");
-    }
+    const token = await getAmadeusToken();
 
     const url = new URL(
       "https://test.api.amadeus.com/v2/shopping/flight-offers",
