@@ -7,7 +7,7 @@ A trip planning application built with LangChain's LangGraph technology, impleme
 This application uses a **supervisor pattern** where a central supervisor agent analyzes user intent and routes requests to specialized agents. Each agent operates as a separate node in the graph with access to domain-specific tools or the generator function for LLM-generated data.
 
 ```
-START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant Agent | Unsupported Node] -> END
+START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant Agent | Sightseeing Agent | Unsupported Node] -> END
 ```
 
 ### Two Agent Patterns
@@ -15,7 +15,7 @@ START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant A
 The system supports two types of agent nodes:
 
 1. **Tool-based agents** use `createReactAgent` from LangGraph with external API tools. The arithmetic and flight agents follow this pattern.
-2. **Generator-based agents** use direct `model.invoke()` calls for conversation and the `generator()` utility for data generation. This is for agents without third-party API integrations. The restaurant and hotel agents follow this pattern.
+2. **Generator-based agents** use direct `model.invoke()` calls for conversation and the `generator()` utility for data generation. This is for agents without third-party API integrations. The restaurant, hotel, and sightseeing agents follow this pattern.
 
 ### Current Agents
 
@@ -25,6 +25,7 @@ The system supports two types of agent nodes:
 | Flight      | Flight search using Amadeus API                         | Tool      | searchFlights               |
 | Hotel       | Hotel recommendations based on Trip context             | Generator | generator()                 |
 | Restaurant  | Restaurant recommendations based on Trip context        | Generator | generator()                 |
+| Sightseeing | Sightseeing and attraction recommendations based on Trip context | Generator | generator()                 |
 | Unsupported | Fallback for unrecognized requests                      | None      | None                        |
 
 ## Graph Structure
@@ -38,6 +39,7 @@ const workflow = new StateGraph(AgentState)
   .addNode("flightAgent", flightNode)
   .addNode("hotelAgent", hotelNode)
   .addNode("restaurantAgent", restaurantNode)
+  .addNode("sightseeingAgent", sightseeingNode)
   .addNode("unsupportedNode", unsupportedNode)
   .addEdge(START, "router")
   .addConditionalEdges("router", routeByIntent)
@@ -45,6 +47,7 @@ const workflow = new StateGraph(AgentState)
   .addEdge("flightAgent", END)
   .addEdge("hotelAgent", END)
   .addEdge("restaurantAgent", END)
+  .addEdge("sightseeingAgent", END)
   .addEdge("unsupportedNode", END);
 
 export const graph = workflow.compile();
@@ -96,7 +99,7 @@ The router classifies user intent and determines which agent should handle the r
 
 - Examines the last 6 messages (3 conversation turns) for context
 - Handles follow-up questions intelligently (maintains intent during clarification)
-- Returns one of: `arithmetic`, `flights`, `hotel`, `restaurant`, or `unsupported`
+- Returns one of: `arithmetic`, `flights`, `hotel`, `restaurant`, `sightseeing`, or `unsupported`
 
 ```typescript
 export function routeByIntent(state: AgentStateType): string {
@@ -109,6 +112,8 @@ export function routeByIntent(state: AgentStateType): string {
       return "hotelAgent";
     case "restaurant":
       return "restaurantAgent";
+    case "sightseeing":
+      return "sightseeingAgent";
     default:
       return "unsupportedNode";
   }
@@ -246,6 +251,33 @@ export interface RestaurantResponseData {
 }
 ```
 
+### Sightseeing Agent
+
+**Location:** `graph/nodes/sightseeing/`
+
+Generates sightseeing and tourist attraction recommendations using the generator function. Follows the same generator-based pattern as the hotel and restaurant agents.
+
+**Files:**
+
+- `sightseeingNode.ts` - Agent node implementation
+
+**How it works:**
+
+The sightseeing node follows the same two-phase approach as the hotel and restaurant agents:
+
+1. **Phase 1 -- Check context:** Validates that `trip.destination` exists. If missing, uses `model.invoke()` to ask the user for it.
+2. **Phase 2 -- Generate data:** Creates 5 `Sights` templates with all fields set to `null`, passes them to `generator()` with Trip context (destination, hotel, budget, interests, constraints), then generates a conversational summary.
+
+**Response data type:**
+
+```typescript
+export interface SightseeingResponseData {
+  type: "sightseeing";
+  summary?: string;
+  options?: Sights[];
+}
+```
+
 ### Unsupported Node
 
 **Location:** `graph/nodes/unsupportedNode.ts`
@@ -377,7 +409,8 @@ export type ResponseData =
   | ArithmeticResponseData
   | FlightResponseData
   | HotelResponseData
-  | RestaurantResponseData;
+  | RestaurantResponseData
+  | SightseeingResponseData;
 
 export interface ArithmeticResponseData {
   type: "arithmetic";
@@ -401,6 +434,12 @@ export interface RestaurantResponseData {
   type: "restaurant";
   summary?: string;
   options?: RestaurantResults[];
+}
+
+export interface SightseeingResponseData {
+  type: "sightseeing";
+  summary?: string;
+  options?: Sights[];
 }
 ```
 
@@ -428,7 +467,7 @@ export interface Trip {
 **Location:** `types/intents.ts`
 
 ```typescript
-export type Intent = "arithmetic" | "flights" | "hotel" | "restaurant" | "unsupported";
+export type Intent = "arithmetic" | "flights" | "hotel" | "restaurant" | "sightseeing" | "unsupported";
 ```
 
 ### Restaurant Types
@@ -440,6 +479,18 @@ export interface RestaurantResults {
   name: string;
   location: string;
   cuisine: string;
+}
+```
+
+### Sightseeing Types
+
+**Location:** `types/sightseeing/sights.ts`
+
+```typescript
+export interface Sights {
+  name: string;
+  location: string;
+  description: string;
 }
 ```
 
@@ -562,6 +613,8 @@ multi-agent-example/
 │       │   └── hotelNode.ts
 │       ├── restaurant/
 │       │   └── restaurantNode.ts
+│       ├── sightseeing/
+│       │   └── sightseeingNode.ts
 │       ├── supervisor/
 │       │   ├── router.ts
 │       │   └── utils/
@@ -589,8 +642,10 @@ multi-agent-example/
 │   │   └── flights.ts
 │   ├── hotel/
 │   │   └── hotels.ts
-│   └── restaurant/
-│       └── restaurants.ts
+│   ├── restaurant/
+│   │   └── restaurants.ts
+│   └── sightseeing/
+│       └── sights.ts
 ├── utils/
 │   └── agents/
 │       ├── extractLastToolJson.ts

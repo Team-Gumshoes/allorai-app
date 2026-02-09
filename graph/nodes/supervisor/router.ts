@@ -33,6 +33,8 @@ export function routeByIntent(state: AgentStateType): string {
       return "hotelAgent";
     case "restaurant":
       return "restaurantAgent";
+    case "sightseeing":
+      return "sightseeingAgent";
     default:
       return "unsupportedNode";
   }

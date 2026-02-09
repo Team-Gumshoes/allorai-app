@@ -17,6 +17,7 @@ An Express server that uses LangChain's LangGraph to build AI agents with a supe
   - [Flight Agent](#flight-agent)
   - [Restaurant Agent](#restaurant-agent)
   - [Hotel Agent](#hotel-agent)
+  - [Sightseeing Agent](#sightseeing-agent)
 - [Generator Function](#generator-function)
   - [Overview](#overview)
   - [Usage](#usage)
@@ -37,6 +38,7 @@ An Express server that uses LangChain's LangGraph to build AI agents with a supe
 - **Flight Agent**: Search for round-trip flights using the Amadeus API
 - **Restaurant Agent**: LLM-generated restaurant recommendations using the generator function
 - **Hotel Agent**: LLM-generated hotel recommendations using the generator function
+- **Sightseeing Agent**: LLM-generated sightseeing and attraction recommendations using the generator function
 - **Generator Function**: Generic utility that fills null values in JSON data using LLM context
 - **Multiple LLM Support**: OpenAI, Google Gemini, or local Ollama models
 - **Extensible**: Easy to add new agents with custom tools or LLM-generated data
@@ -44,7 +46,7 @@ An Express server that uses LangChain's LangGraph to build AI agents with a supe
 ## Architecture
 
 ```
-START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant Agent | Unsupported] -> END
+START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant Agent | Sightseeing Agent | Unsupported] -> END
 ```
 
 The router classifies user intent and directs the request to the appropriate agent. Each agent has access to domain-specific tools and can engage in multi-turn conversations to gather required information. Agents without tools can use the generator function to produce LLM-generated data instead.
@@ -211,6 +213,42 @@ Generates hotel recommendations using the generator function. Follows the same g
 }
 ```
 
+### Sightseeing Agent
+
+**Location:** `graph/nodes/sightseeing/`
+
+Generates sightseeing and attraction recommendations using the generator function. Follows the same generator-based pattern as the hotel and restaurant agents.
+
+**How it works:**
+
+1. Checks if the Trip has a `destination`. If missing, it asks the user for one using a direct `model.invoke()` call.
+2. Once a destination is available, it creates a template array of 5 `Sights` objects with all fields set to `null`.
+3. Passes the templates and Trip context to the `generator()` function, which fills in the null values with contextually appropriate sightseeing data.
+4. Generates a conversational summary of the recommendations via a second LLM call.
+5. Returns both the summary message and the structured `SightseeingResponseData`.
+
+**Example request:**
+
+```json
+{
+  "messages": [
+    { "type": "human", "content": "What should I see in Paris?" }
+  ],
+  "trip": {
+    "origin": "New York",
+    "destination": "Paris",
+    "departureFlight": null,
+    "returnFlight": null,
+    "departureDate": "2026-03-01",
+    "returnDate": "2026-03-07",
+    "budget": 4000,
+    "hotel": "Le Marais Hotel",
+    "interests": ["history", "art"],
+    "constraints": []
+  }
+}
+```
+
 ## Generator Function
 
 ### Overview
@@ -326,7 +364,7 @@ Follow these steps to add a new agent that connects to an external API or uses t
 Update `types/intents.ts`:
 
 ```typescript
-export type Intent = "arithmetic" | "flights" | "hotel" | "restaurant" | "unsupported";
+export type Intent = "arithmetic" | "flights" | "hotel" | "restaurant" | "sightseeing" | "unsupported";
 ```
 
 #### 2. Update Intent Classifier
@@ -494,6 +532,7 @@ multi-agent-example/
 │       ├── flight/           # Flight agent (tool-based)
 │       ├── hotel/            # Hotel agent (generator-based)
 │       ├── restaurant/       # Restaurant agent (generator-based)
+│       ├── sightseeing/      # Sightseeing agent (generator-based)
 │       ├── supervisor/       # Router and intent classification
 │       └── unsupportedNode.ts
 ├── models/                   # LLM configurations
