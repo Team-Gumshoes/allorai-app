@@ -1,1 +1,0 @@
-# Hotel agent module

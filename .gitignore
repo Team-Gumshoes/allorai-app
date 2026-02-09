@@ -1,60 +1,41 @@
-# Dependencies
-node_modules/
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-.venv/
-venv/
-ENV/
-env/
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
-# Build outputs
-dist/
-build/
-.next/
-*.tsbuildinfo
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# Environment files (except .env.development which is committed)
-.env
-.env.local
-.env.production
+# testing
+/coverage
 
-# IDE files
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
 .DS_Store
+*.pem
 
-# Docker
-.dockerignore
-
-# Logs
-logs/
-*.log
+# debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-pnpm-debug.log*
+.pnpm-debug.log*
 
-# Testing
-coverage/
-.nyc_output/
-*.lcov
+# env files (can opt-in for committing if needed)
+.env
 
-# Misc
-.cache/
-temp/
-tmp/
+# vercel
+.vercel
 
-# NX
-.nx/cache
-.nx/workspace-data
-/mcp-server/mcp_server.egg-info/dependency_links.txt
-/mcp-server/mcp_server.egg-info/PKG-INFO
-/mcp-server/mcp_server.egg-info/requires.txt
-/mcp-server/mcp_server.egg-info/SOURCES.txt
-/mcp-server/mcp_server.egg-info/top_level.txt
+# typescript
+*.tsbuildinfo
+next-env.d.ts
