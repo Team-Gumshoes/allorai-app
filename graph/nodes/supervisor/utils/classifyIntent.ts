@@ -26,6 +26,7 @@ export async function classifyIntent(messages: BaseMessage[]): Promise<Intent> {
     - flights: getting flight data between two locations
     - hotel: finding hotels, lodging, or accommodation at a destination
     - restaurant: finding restaurants, food, or dining recommendations at a destination
+    - selfie: finding good selfie spots, photo locations, or instagram-worthy places at a destination
     - sightseeing: finding tourist attractions, landmarks, sightseeing spots, or things to see at a destination
     - unsupported: anything else
 
@@ -60,6 +61,11 @@ export async function classifyIntent(messages: BaseMessage[]): Promise<Intent> {
       User: "Italian"
       → "restaurant" (answering restaurant question)
 
+      User: "Where can I take selfies in Paris?"
+      Assistant: "Any particular vibe you're going for?"
+      User: "Iconic landmarks"
+      → "selfie" (answering selfie question)
+
       User: "What should I see in Rome?"
       Assistant: "Any particular interests?"
       User: "Historical sites"
@@ -75,6 +81,7 @@ export async function classifyIntent(messages: BaseMessage[]): Promise<Intent> {
     { "intent": "flights" }
     { "intent": "hotel" }
     { "intent": "restaurant" }
+    { "intent": "selfie" }
     { "intent": "sightseeing" }
     { "intent": "unsupported" }
     `),

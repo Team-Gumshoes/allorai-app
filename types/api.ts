@@ -3,6 +3,7 @@ import type { ArithmeticResult } from "./arithmetic/arithmetic.js";
 import type { FlightResults } from "./flight/flights.js";
 import type { HotelResults } from "./hotel/hotels.js";
 import type { RestaurantResults } from "./restaurant/restaurants.js";
+import type { SelfieSpots } from "./selfie/selfieSpots.js";
 import type { Sights } from "./sightseeing/sights.js";
 
 export interface Message {
@@ -34,6 +35,12 @@ export interface RestaurantResponseData {
   options?: RestaurantResults[];
 }
 
+export interface SelfieResponseData {
+  type: "selfie";
+  summary?: string;
+  options?: SelfieSpots[];
+}
+
 export interface SightseeingResponseData {
   type: "sightseeing";
   summary?: string;
@@ -45,6 +52,7 @@ export type ResponseData =
   | FlightResponseData
   | HotelResponseData
   | RestaurantResponseData
+  | SelfieResponseData
   | SightseeingResponseData;
 
 export interface ChatRequest {
