@@ -1,17 +1,12 @@
-import "dotenv/config";
-
 import type {
   FlightLeg,
   FlightResults,
   FlightSegment,
 } from "../types/flight/flights.js";
+import { getAmadeusToken } from "../utils/amadeus/tokenManager.js";
 
 const findFlights = async () => {
-  const token = process.env.AMADEUS_API_TOKEN;
-
-  if (!token) {
-    throw new Error("Missing FLIGHT_API_TOKEN");
-  }
+  const token = await getAmadeusToken();
 
   const originLocationCode = "JFK";
   const destinationLocationCode = "NRT";

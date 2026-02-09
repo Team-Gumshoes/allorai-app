@@ -70,7 +70,9 @@ Create a `.env` file based on `.env.example`:
 | `PORT`              | Server port (default: 8000)           |
 | `OPENAI_API_KEY`    | OpenAI API key                        |
 | `GOOGLE_API_KEY`    | Google Gemini API key                 |
-| `AMADEUS_API_TOKEN` | Amadeus API token for flight searches |
+| `AMADEUS_CLIENT_ID`     | Amadeus API client ID for OAuth2      |
+| `AMADEUS_CLIENT_SECRET` | Amadeus API client secret for OAuth2  |
+| `AMADEUS_GRANT_TYPE`    | Amadeus OAuth2 grant type             |
 
 ## Running the Server
 
