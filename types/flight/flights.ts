@@ -18,7 +18,7 @@ export interface FlightLeg {
 }
 
 export interface FlightResults {
-  // totalDuration: string;
+  id: string;
   price: number;
   currency: string;
   legs: FlightLeg[];
