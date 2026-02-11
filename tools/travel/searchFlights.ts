@@ -6,6 +6,7 @@ import type {
   FlightSegment,
 } from "../../types/flight/flights.js";
 import { getAmadeusToken } from "../../utils/amadeus/tokenManager.js";
+import { nanoid } from "nanoid";
 
 /**
  * IMPORTANT:
@@ -76,6 +77,7 @@ export const searchFlights = tool(
     // Loop through the offers
     for (const offer of rawData.data) {
       const flightResults: FlightResults = {
+        id: nanoid(),
         price: 0,
         currency: "",
         legs: [],

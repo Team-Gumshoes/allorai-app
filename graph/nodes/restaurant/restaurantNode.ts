@@ -1,9 +1,14 @@
-import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
+import {
+  SystemMessage,
+  HumanMessage,
+  AIMessage,
+} from "@langchain/core/messages";
 import { model } from "../../../models/openAi.js";
 import { generator } from "../../../utils/agents/generator.js";
 import type { RestaurantResults } from "../../../types/restaurant/restaurants.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
+import { nanoid } from "nanoid";
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
@@ -19,6 +24,15 @@ function buildTripContext(trip: Trip): Record<string, unknown> {
     hotel: trip.hotel,
     interests: trip.interests,
     constraints: trip.constraints,
+  };
+}
+
+function createRestaurantTemplate(): RestaurantResults {
+  return {
+    id: nanoid(),
+    name: null as unknown as string,
+    location: null as unknown as string,
+    cuisine: null as unknown as string,
   };
 }
 
@@ -44,14 +58,8 @@ Missing: ${missingFields.join(", ")}`),
 
   // Generate restaurant recommendations
   try {
-    const template: RestaurantResults = {
-      name: null as unknown as string,
-      location: null as unknown as string,
-      cuisine: null as unknown as string,
-    };
-
     const restaurants = await generator<RestaurantResults>({
-      data: [template, template, template],
+      data: Array.from({ length: 3 }, () => createRestaurantTemplate()),
       context: buildTripContext(trip),
       description: "restaurant recommendations near the trip destination",
     });
