@@ -19,15 +19,15 @@ The system supports two types of agent nodes:
 
 ### Current Agents
 
-| Agent       | Purpose                                                 | Pattern   | Tools/Data Source           |
-| ----------- | ------------------------------------------------------- | --------- | --------------------------- |
-| Arithmetic  | Basic math operations (+, -, \*, /) between two numbers | Tool      | add, subtract, multiply, divide |
-| Flight      | Flight search using Amadeus API                         | Tool      | searchFlights               |
-| Hotel       | Hotel recommendations based on Trip context             | Generator | generator()                 |
-| Restaurant  | Restaurant recommendations based on Trip context        | Generator | generator()                 |
-| Sightseeing | Sightseeing and attraction recommendations based on Trip context | Generator | generator()                 |
-| Selfie      | Selfie spot recommendations based on Trip context        | Generator | generator()                 |
-| Unsupported | Fallback for unrecognized requests                      | None      | None                        |
+| Agent       | Purpose                                                          | Pattern   | Tools/Data Source               |
+| ----------- | ---------------------------------------------------------------- | --------- | ------------------------------- |
+| Arithmetic  | Basic math operations (+, -, \*, /) between two numbers          | Tool      | add, subtract, multiply, divide |
+| Flight      | Flight search using Amadeus API                                  | Tool      | searchFlights                   |
+| Hotel       | Hotel recommendations based on Trip context                      | Generator | generator()                     |
+| Restaurant  | Restaurant recommendations based on Trip context                 | Generator | generator()                     |
+| Sightseeing | Sightseeing and attraction recommendations based on Trip context | Generator | generator()                     |
+| Selfie      | Selfie spot recommendations based on Trip context                | Generator | generator()                     |
+| Unsupported | Fallback for unrecognized requests                               | None      | None                            |
 
 ## Graph Structure
 
@@ -327,13 +327,13 @@ A generic utility that calls an LLM to fill `null` values in JSON data with cont
 ```typescript
 export async function generator<T extends object>(
   options: GeneratorOptions<T>,
-): Promise<T[]>
+): Promise<T[]>;
 ```
 
 ### GeneratorOptions
 
-| Field         | Type                      | Description                                                     |
-| ------------- | ------------------------- | --------------------------------------------------------------- |
+| Field         | Type                      | Description                                                      |
+| ------------- | ------------------------- | ---------------------------------------------------------------- |
 | `data`        | `T \| T[]`                | Template(s) with null values to fill. Non-null values preserved. |
 | `context`     | `Record<string, unknown>` | Contextual information for realistic generation.                 |
 | `description` | `string`                  | Natural language description of what data to generate.           |
@@ -428,7 +428,6 @@ export interface ChatResponse {
   messages: Message[];
   data: ResponseData | null;
   trip: Trip;
-  debug: Message[];
 }
 ```
 
@@ -506,7 +505,14 @@ export interface Trip {
 **Location:** `types/intents.ts`
 
 ```typescript
-export type Intent = "arithmetic" | "flights" | "hotel" | "restaurant" | "selfie" | "sightseeing" | "unsupported";
+export type Intent =
+  | "arithmetic"
+  | "flights"
+  | "hotel"
+  | "restaurant"
+  | "selfie"
+  | "sightseeing"
+  | "unsupported";
 ```
 
 ### Selfie Types
@@ -585,7 +591,6 @@ The application runs an Express server with the following endpoints:
   ],
   "data": null,
   "trip": { ... },
-  "debug": [ ... ]
 }
 ```
 
@@ -714,11 +719,11 @@ multi-agent-example/
 
 ## Environment Variables
 
-| Variable            | Description                           |
-| ------------------- | ------------------------------------- |
-| `PORT`              | Server port (default: 8000)           |
-| `OPENAI_API_KEY`    | OpenAI API key                        |
-| `GOOGLE_API_KEY`    | Google Gemini API key                 |
-| `AMADEUS_CLIENT_ID`     | Amadeus API client ID for OAuth2      |
-| `AMADEUS_CLIENT_SECRET` | Amadeus API client secret for OAuth2  |
-| `AMADEUS_GRANT_TYPE`    | Amadeus OAuth2 grant type             |
+| Variable                | Description                          |
+| ----------------------- | ------------------------------------ |
+| `PORT`                  | Server port (default: 8000)          |
+| `OPENAI_API_KEY`        | OpenAI API key                       |
+| `GOOGLE_API_KEY`        | Google Gemini API key                |
+| `AMADEUS_CLIENT_ID`     | Amadeus API client ID for OAuth2     |
+| `AMADEUS_CLIENT_SECRET` | Amadeus API client secret for OAuth2 |
+| `AMADEUS_GRANT_TYPE`    | Amadeus OAuth2 grant type            |

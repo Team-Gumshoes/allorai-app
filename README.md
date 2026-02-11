@@ -65,14 +65,14 @@ pnpm install
 
 Create a `.env` file based on `.env.example`:
 
-| Variable            | Description                           |
-| ------------------- | ------------------------------------- |
-| `PORT`              | Server port (default: 8000)           |
-| `OPENAI_API_KEY`    | OpenAI API key                        |
-| `GOOGLE_API_KEY`    | Google Gemini API key                 |
-| `AMADEUS_CLIENT_ID`     | Amadeus API client ID for OAuth2      |
-| `AMADEUS_CLIENT_SECRET` | Amadeus API client secret for OAuth2  |
-| `AMADEUS_GRANT_TYPE`    | Amadeus OAuth2 grant type             |
+| Variable                | Description                          |
+| ----------------------- | ------------------------------------ |
+| `PORT`                  | Server port (default: 8000)          |
+| `OPENAI_API_KEY`        | OpenAI API key                       |
+| `GOOGLE_API_KEY`        | Google Gemini API key                |
+| `AMADEUS_CLIENT_ID`     | Amadeus API client ID for OAuth2     |
+| `AMADEUS_CLIENT_SECRET` | Amadeus API client secret for OAuth2 |
+| `AMADEUS_GRANT_TYPE`    | Amadeus OAuth2 grant type            |
 
 ## Running the Server
 
@@ -121,7 +121,6 @@ Send messages to the agent and receive responses.
   ],
   "data": null,
   "trip": { ... },
-  "debug": [ ... ]
 }
 ```
 
@@ -163,9 +162,7 @@ Generates restaurant recommendations using the generator function instead of ext
 
 ```json
 {
-  "messages": [
-    { "type": "human", "content": "Find me some restaurants" }
-  ],
+  "messages": [{ "type": "human", "content": "Find me some restaurants" }],
   "trip": {
     "origin": "New York",
     "destination": "Tokyo",
@@ -199,9 +196,7 @@ Generates hotel recommendations using the generator function. Follows the same g
 
 ```json
 {
-  "messages": [
-    { "type": "human", "content": "Find me some hotels" }
-  ],
+  "messages": [{ "type": "human", "content": "Find me some hotels" }],
   "trip": {
     "origin": "New York",
     "destination": "Tokyo",
@@ -235,9 +230,7 @@ Generates sightseeing and attraction recommendations using the generator functio
 
 ```json
 {
-  "messages": [
-    { "type": "human", "content": "What should I see in Paris?" }
-  ],
+  "messages": [{ "type": "human", "content": "What should I see in Paris?" }],
   "trip": {
     "origin": "New York",
     "destination": "Paris",
@@ -316,11 +309,11 @@ const results = await generator<MyType>({
 
 The generator accepts a `GeneratorOptions<T>` object:
 
-| Parameter     | Type                       | Description                                                                                                            |
-| ------------- | -------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `data`        | `T \| T[]`                 | A single object or array of objects with `null` values to be filled. Non-null values are preserved.                    |
-| `context`     | `Record<string, unknown>`  | Contextual information the LLM uses to generate appropriate values. Can include any relevant data (Trip, hotel, etc.). |
-| `description` | `string`                   | A natural language description of what kind of data is being generated.                                                |
+| Parameter     | Type                      | Description                                                                                                            |
+| ------------- | ------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `data`        | `T \| T[]`                | A single object or array of objects with `null` values to be filled. Non-null values are preserved.                    |
+| `context`     | `Record<string, unknown>` | Contextual information the LLM uses to generate appropriate values. Can include any relevant data (Trip, hotel, etc.). |
+| `description` | `string`                  | A natural language description of what kind of data is being generated.                                                |
 
 **Returns:** `Promise<T[]>` -- always returns an array, even if a single object was provided as input.
 
@@ -404,7 +397,14 @@ Follow these steps to add a new agent that connects to an external API or uses t
 Update `types/intents.ts`:
 
 ```typescript
-export type Intent = "arithmetic" | "flights" | "hotel" | "restaurant" | "selfie" | "sightseeing" | "unsupported";
+export type Intent =
+  | "arithmetic"
+  | "flights"
+  | "hotel"
+  | "restaurant"
+  | "selfie"
+  | "sightseeing"
+  | "unsupported";
 ```
 
 #### 2. Update Intent Classifier
@@ -521,7 +521,11 @@ For agents that don't have an external API, use the generator function instead o
 #### Agent Node Template (no tools):
 
 ```typescript
-import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
+import {
+  SystemMessage,
+  HumanMessage,
+  AIMessage,
+} from "@langchain/core/messages";
 import { model } from "../../../models/openAi.js";
 import { generator } from "../../../utils/agents/generator.js";
 import type { MyResultType } from "../../../types/myDomain/myType.js";
@@ -538,7 +542,9 @@ export async function myNode(
       new SystemMessage("Ask for the missing destination."),
       ...state.messages.slice(-6),
     ]);
-    return { messages: [...state.messages, new AIMessage(response.content as string)] };
+    return {
+      messages: [...state.messages, new AIMessage(response.content as string)],
+    };
   }
 
   // Create templates with null fields for the generator to fill
