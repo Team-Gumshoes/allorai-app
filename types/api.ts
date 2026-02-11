@@ -65,5 +65,4 @@ export interface ChatResponse {
   messages: Message[];
   data: ResponseData | null;
   trip: Trip;
-  debug: Message[];
 }
