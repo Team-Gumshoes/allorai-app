@@ -92,7 +92,6 @@ app.post("/chat", async (req: Request, res: Response) => {
       messages: filteredMessages,
       data: result.data || null,
       trip: result.trip || trip || createEmptyTrip(),
-      debug: allMessages,
     };
 
     res.json(response);

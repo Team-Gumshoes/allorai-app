@@ -4,6 +4,7 @@ import type {
   FlightSegment,
 } from "../types/flight/flights.js";
 import { getAmadeusToken } from "../utils/amadeus/tokenManager.js";
+import { nanoid } from "nanoid";
 
 const findFlights = async () => {
   const token = await getAmadeusToken();
@@ -53,7 +54,7 @@ const findFlights = async () => {
   // Loop through the offers
   for (const offer of rawData.data) {
     const flightResults: FlightResults = {
-      // duration: "",
+      id: nanoid(),
       price: 0,
       currency: "",
       legs: [],
