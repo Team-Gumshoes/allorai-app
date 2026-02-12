@@ -86,14 +86,22 @@ export async function flightNode(
 
     // Validate flight data
     if (!Array.isArray(flightData) || flightData.length === 0) {
+      console.error("[flightNode] Flight data is empty or not an array:", flightData);
       const errorMessage = new AIMessage(
         "Something went wrong. Please try again later.",
       );
       return { messages: [...result.messages, errorMessage] };
     }
 
-    // Summarize the flights
-    const summary = await summarizeFlights(flightData, result.messages);
+    // Summarize the flights - non-fatal if LLM call fails
+    let summary: string;
+    try {
+      summary = await summarizeFlights(flightData, result.messages);
+    } catch (summarizeError) {
+      console.error("[flightNode] Summarization failed:", summarizeError);
+      summary = "Here are the flight options I found.";
+    }
+
     const finalMessage = new AIMessage(summary);
 
     // Return updated state with data extracted
@@ -101,11 +109,12 @@ export async function flightNode(
       messages: [...result.messages, finalMessage],
       data: {
         type: "flight",
-        summary: summary,
+        summary,
         options: flightData,
       },
     };
   } catch (error) {
+    console.error("[flightNode] Post-processing error:", error);
     const errorMessage = new AIMessage(
       "Something went wrong. Please try again later.",
     );
