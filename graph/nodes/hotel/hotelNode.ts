@@ -1,9 +1,14 @@
-import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
+import {
+  SystemMessage,
+  HumanMessage,
+  AIMessage,
+} from "@langchain/core/messages";
 import { model } from "../../../models/openAi.js";
 import { generator } from "../../../utils/agents/generator.js";
 import type { HotelResults } from "../../../types/hotel/hotels.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
+import { nanoid } from "nanoid";
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
@@ -19,6 +24,16 @@ function buildTripContext(trip: Trip): Record<string, unknown> {
     hotel: trip.hotel,
     interests: trip.interests,
     constraints: trip.constraints,
+  };
+}
+
+function createHotelTemplate(): HotelResults {
+  return {
+    id: nanoid(),
+    name: null as unknown as string,
+    location: null as unknown as string,
+    num_of_stars: null as unknown as number,
+    price: null as unknown as number,
   };
 }
 
@@ -44,15 +59,9 @@ Missing: ${missingFields.join(", ")}`),
 
   // Generate hotel recommendations
   try {
-    const template: HotelResults = {
-      name: null as unknown as string,
-      location: null as unknown as string,
-      num_of_stars: null as unknown as number,
-      price: null as unknown as number,
-    };
-
     const hotels = await generator<HotelResults>({
-      data: [template, template, template, template, template],
+      // data: [template, template, template, template, template],
+      data: Array.from({ length: 5 }, () => createHotelTemplate()),
       context: buildTripContext(trip),
       description: "hotel recommendations near the trip destination",
     });

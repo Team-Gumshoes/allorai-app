@@ -1,9 +1,14 @@
-import { SystemMessage, HumanMessage, AIMessage } from "@langchain/core/messages";
+import {
+  SystemMessage,
+  HumanMessage,
+  AIMessage,
+} from "@langchain/core/messages";
 import { model } from "../../../models/openAi.js";
 import { generator } from "../../../utils/agents/generator.js";
 import type { Sights } from "../../../types/sightseeing/sights.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
+import { nanoid } from "nanoid";
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
@@ -19,6 +24,15 @@ function buildTripContext(trip: Trip): Record<string, unknown> {
     hotel: trip.hotel,
     interests: trip.interests,
     constraints: trip.constraints,
+  };
+}
+
+function createSightsTemplate(): Sights {
+  return {
+    id: nanoid(),
+    name: null as unknown as string,
+    location: null as unknown as string,
+    description: null as unknown as string,
   };
 }
 
@@ -44,16 +58,11 @@ Missing: ${missingFields.join(", ")}`),
 
   // Generate sightseeing recommendations
   try {
-    const template: Sights = {
-      name: null as unknown as string,
-      location: null as unknown as string,
-      description: null as unknown as string,
-    };
-
     const sights = await generator<Sights>({
-      data: [template, template, template, template, template],
+      data: Array.from({ length: 5 }, () => createSightsTemplate()),
       context: buildTripContext(trip),
-      description: "sightseeing location recommendations near the trip destination",
+      description:
+        "sightseeing location recommendations near the trip destination",
     });
 
     // Generate a conversational summary
