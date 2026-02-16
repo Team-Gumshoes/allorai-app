@@ -5,6 +5,7 @@ import type { HotelResults } from "./hotel/hotels.js";
 import type { RestaurantResults } from "./restaurant/restaurants.js";
 import type { SelfieSpots } from "./selfie/selfieSpots.js";
 import type { Activities } from "./activities/activities.js";
+import type { Nature } from "./nature/nature.js";
 
 export interface Message {
   type: "human" | "ai";
@@ -47,10 +48,17 @@ export interface ActivitiesResponseData {
   options?: Activities[];
 }
 
+export interface NatureResponseData {
+  type: "nature";
+  summary?: string;
+  options?: Nature[];
+}
+
 export type ResponseData =
   | ArithmeticResponseData
   | FlightResponseData
   | HotelResponseData
+  | NatureResponseData
   | RestaurantResponseData
   | SelfieResponseData
   | ActivitiesResponseData;
