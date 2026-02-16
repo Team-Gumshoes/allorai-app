@@ -7,13 +7,14 @@ import { hotelNode } from "./nodes/hotel/hotelNode.js";
 import { restaurantNode } from "./nodes/restaurant/restaurantNode.js";
 import { selfieNode } from "./nodes/selfie/selfieNode.js";
 import { activityNode } from "./nodes/activities/activityNode.js";
+import { natureNode } from "./nodes/nature/natureNode.js";
 import { unsupportedNode } from "./nodes/unsupportedNode.js";
 
 /**
  * Multi-agent graph using LangGraph.
  *
  * Architecture:
- *   START -> router -> [arithmeticAgent | flightAgent | hotelAgent | restaurantAgent | selfieAgent | activityAgent | unsupportedNode] -> END
+ *   START -> router -> [arithmeticAgent | flightAgent | hotelAgent | restaurantAgent | selfieAgent | activityAgent | natureAgent | unsupportedNode] -> END
  *
  * The router classifies intent and routes to the appropriate agent node.
  * Each agent node handles its domain and returns updated messages.
@@ -34,6 +35,7 @@ const workflow = new StateGraph(AgentState)
   .addNode("restaurantAgent", restaurantNode)
   .addNode("selfieAgent", selfieNode)
   .addNode("activityAgent", activityNode)
+  .addNode("natureAgent", natureNode)
   .addNode("unsupportedNode", unsupportedNode)
   // Add edges
   .addEdge(START, "router")
@@ -44,6 +46,7 @@ const workflow = new StateGraph(AgentState)
   .addEdge("restaurantAgent", END)
   .addEdge("selfieAgent", END)
   .addEdge("activityAgent", END)
+  .addEdge("natureAgent", END)
   .addEdge("unsupportedNode", END);
 
 export const graph = workflow.compile();
