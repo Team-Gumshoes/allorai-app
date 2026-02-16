@@ -6,6 +6,7 @@ import type { RestaurantResults } from "./restaurant/restaurants.js";
 import type { SelfieSpots } from "./selfie/selfieSpots.js";
 import type { Activities } from "./activities/activities.js";
 import type { Nature } from "./nature/nature.js";
+import type { Tips } from "./tips/tips.js";
 
 export interface Message {
   type: "human" | "ai";
@@ -54,6 +55,12 @@ export interface NatureResponseData {
   options?: Nature[];
 }
 
+export interface TipsResponseData {
+  type: "tips";
+  summary?: string;
+  options?: Tips[];
+}
+
 export type ResponseData =
   | ArithmeticResponseData
   | FlightResponseData
@@ -61,7 +68,8 @@ export type ResponseData =
   | NatureResponseData
   | RestaurantResponseData
   | SelfieResponseData
-  | ActivitiesResponseData;
+  | ActivitiesResponseData
+  | TipsResponseData;
 
 export interface ChatRequest {
   messages: Message[];
@@ -71,6 +79,16 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   messages: Message[];
+  data: ResponseData | null;
+  trip: Trip;
+}
+
+export interface TipsRequest {
+  data?: ResponseData | null;
+  trip: Trip;
+}
+
+export interface TipsResponse {
   data: ResponseData | null;
   trip: Trip;
 }
