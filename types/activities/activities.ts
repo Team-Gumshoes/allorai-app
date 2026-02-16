@@ -1,4 +1,4 @@
-export interface Sights {
+export interface Activities {
   id: string;
   name: string;
   location: string;
