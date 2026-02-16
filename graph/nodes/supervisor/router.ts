@@ -37,6 +37,8 @@ export function routeByIntent(state: AgentStateType): string {
       return "selfieAgent";
     case "activities":
       return "activityAgent";
+    case "nature":
+      return "natureAgent";
     default:
       return "unsupportedNode";
   }
