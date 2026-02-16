@@ -27,7 +27,7 @@ export async function classifyIntent(messages: BaseMessage[]): Promise<Intent> {
     - hotel: finding hotels, lodging, or accommodation at a destination
     - restaurant: finding restaurants, food, or dining recommendations at a destination
     - selfie: finding good selfie spots, photo locations, or instagram-worthy places at a destination
-    - sightseeing: finding tourist attractions, landmarks, sightseeing spots, or things to see at a destination
+    - activities: finding activities, things to do, experiences, tours, or entertainment at a destination
     - unsupported: anything else
 
     CRITICAL: Consider the conversation history context.
@@ -66,10 +66,10 @@ export async function classifyIntent(messages: BaseMessage[]): Promise<Intent> {
       User: "Iconic landmarks"
       → "selfie" (answering selfie question)
 
-      User: "What should I see in Rome?"
+      User: "What can I do in Rome?"
       Assistant: "Any particular interests?"
       User: "Historical sites"
-      → "sightseeing" (answering sightseeing question)
+      → "activities" (answering activities question)
 
     Rules:
     - Return JSON ONLY
@@ -82,7 +82,7 @@ export async function classifyIntent(messages: BaseMessage[]): Promise<Intent> {
     { "intent": "hotel" }
     { "intent": "restaurant" }
     { "intent": "selfie" }
-    { "intent": "sightseeing" }
+    { "intent": "activities" }
     { "intent": "unsupported" }
     `),
     ...recentMessages,

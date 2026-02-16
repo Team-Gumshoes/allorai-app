@@ -4,7 +4,7 @@ import type { FlightResults } from "./flight/flights.js";
 import type { HotelResults } from "./hotel/hotels.js";
 import type { RestaurantResults } from "./restaurant/restaurants.js";
 import type { SelfieSpots } from "./selfie/selfieSpots.js";
-import type { Sights } from "./sightseeing/sights.js";
+import type { Activities } from "./activities/activities.js";
 
 export interface Message {
   type: "human" | "ai";
@@ -41,10 +41,10 @@ export interface SelfieResponseData {
   options?: SelfieSpots[];
 }
 
-export interface SightseeingResponseData {
-  type: "sightseeing";
+export interface ActivitiesResponseData {
+  type: "activities";
   summary?: string;
-  options?: Sights[];
+  options?: Activities[];
 }
 
 export type ResponseData =
@@ -53,7 +53,7 @@ export type ResponseData =
   | HotelResponseData
   | RestaurantResponseData
   | SelfieResponseData
-  | SightseeingResponseData;
+  | ActivitiesResponseData;
 
 export interface ChatRequest {
   messages: Message[];
