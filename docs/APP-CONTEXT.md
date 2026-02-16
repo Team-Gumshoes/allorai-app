@@ -27,6 +27,7 @@ The system supports two types of agent nodes:
 | Restaurant  | Restaurant recommendations based on Trip context                 | Generator | generator()                     |
 | Sightseeing | Sightseeing and attraction recommendations based on Trip context | Generator | generator()                     |
 | Selfie      | Selfie spot recommendations based on Trip context                | Generator | generator()                     |
+| Tips        | Transport, when-to-visit, and safety tips (standalone `/tips` route) | Generator | generator()                 |
 | Unsupported | Fallback for unrecognized requests                               | None      | None                            |
 
 ## Graph Structure
@@ -310,6 +311,39 @@ export interface SelfieResponseData {
 }
 ```
 
+### Tips Agent
+
+**Location:** `graph/nodes/tips/`
+
+Generates travel tips using the generator function. Unlike other agents, the tips agent is **not part of the LangGraph workflow** -- it has its own dedicated `POST /tips` endpoint that calls the generator directly without going through intent classification or routing.
+
+**Files:**
+
+- `tipsNode.ts` - Tips generation function
+
+**How it works:**
+
+1. Receives a `TipsRequest` via `POST /tips` with a Trip that includes a `destination`.
+2. Creates a single `Tips` template with `id` pre-filled (via `nanoid()`) and all tip fields set to `null`.
+3. Passes the template and Trip context (including travel dates) to the `generator()` function, which fills in each tip field with 2-4 sentences.
+4. Returns a `TipsResponse` with the generated tips in the `data` field.
+
+**Tip categories:**
+
+- **transportTips**: Useful transportation tips for visitors at the destination.
+- **whenToVisitTips**: Best times to visit, crowd avoidance, upcoming holidays and festivals.
+- **safetyTips**: Tips for avoiding dangerous areas and staying safe during the trip.
+
+**Response data type:**
+
+```typescript
+export interface TipsResponseData {
+  type: "tips";
+  summary?: string;
+  options?: Tips[];
+}
+```
+
 ### Unsupported Node
 
 **Location:** `graph/nodes/unsupportedNode.ts`
@@ -429,6 +463,16 @@ export interface ChatResponse {
   data: ResponseData | null;
   trip: Trip;
 }
+
+export interface TipsRequest {
+  data?: ResponseData | null;
+  trip: Trip;
+}
+
+export interface TipsResponse {
+  data: ResponseData | null;
+  trip: Trip;
+}
 ```
 
 ### Response Data
@@ -442,7 +486,8 @@ export type ResponseData =
   | HotelResponseData
   | RestaurantResponseData
   | SelfieResponseData
-  | SightseeingResponseData;
+  | SightseeingResponseData
+  | TipsResponseData;
 
 export interface ArithmeticResponseData {
   type: "arithmetic";
@@ -478,6 +523,25 @@ export interface SightseeingResponseData {
   type: "sightseeing";
   summary?: string;
   options?: Sights[];
+}
+
+export interface TipsResponseData {
+  type: "tips";
+  summary?: string;
+  options?: Tips[];
+}
+```
+
+### Tips Types
+
+**Location:** `types/tips/tips.ts`
+
+```typescript
+export interface Tips {
+  id: string;
+  transportTips: string;
+  whenToVisitTips: string;
+  safetyTips: string;
 }
 ```
 
@@ -559,10 +623,11 @@ The application runs an Express server with the following endpoints:
 
 ### Endpoints
 
-| Method | Path      | Description           |
-| ------ | --------- | --------------------- |
-| GET    | `/health` | Health check endpoint |
-| POST   | `/chat`   | Main chat endpoint    |
+| Method | Path      | Description                                    |
+| ------ | --------- | ---------------------------------------------- |
+| GET    | `/health` | Health check endpoint                          |
+| POST   | `/chat`   | Main chat endpoint (graph-based intent routing) |
+| POST   | `/tips`   | Travel tips endpoint (standalone, generator-based) |
 
 ### Chat Endpoint
 
@@ -673,6 +738,8 @@ multi-agent-example/
 │       │   └── selfieNode.ts
 │       ├── sightseeing/
 │       │   └── sightseeingNode.ts
+│       ├── tips/
+│       │   └── tipsNode.ts
 │       ├── supervisor/
 │       │   ├── router.ts
 │       │   └── utils/
@@ -704,8 +771,10 @@ multi-agent-example/
 │   │   └── restaurants.ts
 │   ├── selfie/
 │   │   └── selfieSpots.ts
-│   └── sightseeing/
-│       └── sights.ts
+│   ├── sightseeing/
+│   │   └── sights.ts
+│   └── tips/
+│       └── tips.ts
 ├── utils/
 │   ├── agents/
 │   │   ├── extractLastToolJson.ts

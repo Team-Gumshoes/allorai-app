@@ -3,8 +3,9 @@ import express from "express";
 import { graph } from "./graph/index.js";
 import type { BaseMessage } from "@langchain/core/messages";
 import { HumanMessage, AIMessage } from "@langchain/core/messages";
-import type { ChatRequest, ChatResponse, Message } from "./types/api.js";
+import type { ChatRequest, ChatResponse, Message, TipsRequest, TipsResponse } from "./types/api.js";
 import { createEmptyTrip } from "./types/trip.js";
+import { generateTips } from "./graph/nodes/tips/tipsNode.js";
 
 type Request = express.Request;
 type Response = express.Response;
@@ -97,6 +98,34 @@ app.post("/chat", async (req: Request, res: Response) => {
     res.json(response);
   } catch (error) {
     console.error("Error processing chat:", error);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+app.post("/tips", async (req: Request, res: Response) => {
+  try {
+    const { trip } = req.body as TipsRequest;
+
+    if (!trip?.destination) {
+      res.status(400).json({
+        error: "Missing trip destination. A destination is required to generate tips.",
+      });
+      return;
+    }
+
+    const tips = await generateTips(trip);
+
+    const response: TipsResponse = {
+      data: {
+        type: "tips",
+        options: tips,
+      },
+      trip: trip || createEmptyTrip(),
+    };
+
+    res.json(response);
+  } catch (error) {
+    console.error("Error generating tips:", error);
     res.status(500).json({ error: "Internal server error" });
   }
 });
