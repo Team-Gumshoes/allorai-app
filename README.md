@@ -11,6 +11,7 @@ An Express server that uses LangChain's LangGraph to build AI agents with a supe
 - [Running the Server](#running-the-server)
 - [API Usage](#api-usage)
   - [POST /chat](#post-chat)
+  - [POST /tips](#post-tips)
   - [GET /health](#get-health)
 - [Agents](#agents)
   - [Arithmetic Agent](#arithmetic-agent)
@@ -19,6 +20,7 @@ An Express server that uses LangChain's LangGraph to build AI agents with a supe
   - [Hotel Agent](#hotel-agent)
   - [Sightseeing Agent](#sightseeing-agent)
   - [Selfie Agent](#selfie-agent)
+  - [Tips Agent](#tips-agent)
 - [Generator Function](#generator-function)
   - [Overview](#overview)
   - [Usage](#usage)
@@ -41,6 +43,7 @@ An Express server that uses LangChain's LangGraph to build AI agents with a supe
 - **Hotel Agent**: LLM-generated hotel recommendations using the generator function
 - **Sightseeing Agent**: LLM-generated sightseeing and attraction recommendations using the generator function
 - **Selfie Agent**: LLM-generated selfie spot recommendations using the generator function
+- **Tips Agent**: LLM-generated travel tips (transport, when to visit, safety) via a dedicated `/tips` endpoint
 - **Generator Function**: Generic utility that fills null values in JSON data using LLM context
 - **Multiple LLM Support**: OpenAI, Google Gemini, or local Ollama models
 - **Extensible**: Easy to add new agents with custom tools or LLM-generated data
@@ -123,6 +126,48 @@ Send messages to the agent and receive responses.
   "trip": { ... },
 }
 ```
+
+### POST /tips
+
+Generate travel tips for a trip destination. This endpoint is separate from the graph-based `/chat` route and calls the generator function directly.
+
+**Request (`TipsRequest`):**
+
+```json
+{
+  "trip": {
+    "origin": "New York",
+    "destination": "Tokyo",
+    "departureDate": "2026-03-01",
+    "returnDate": "2026-03-07",
+    "budget": 3000,
+    "hotel": "Park Hyatt Tokyo",
+    "interests": ["sushi", "temples"],
+    "constraints": []
+  }
+}
+```
+
+**Response (`TipsResponse`):**
+
+```json
+{
+  "data": {
+    "type": "tips",
+    "options": [
+      {
+        "id": "abc123",
+        "transportTips": "Tokyo's train system is extensive and efficient...",
+        "whenToVisitTips": "Spring (March-April) is ideal for cherry blossoms...",
+        "safetyTips": "Tokyo is one of the safest major cities in the world..."
+      }
+    ]
+  },
+  "trip": { ... }
+}
+```
+
+**Note:** A `trip.destination` is required. The endpoint returns a 400 error if the destination is missing.
 
 ### GET /health
 
@@ -281,6 +326,25 @@ Generates selfie spot recommendations using the generator function. Follows the 
   }
 }
 ```
+
+### Tips Agent
+
+**Location:** `graph/nodes/tips/`
+
+Generates travel tips using the generator function. Unlike other agents, the tips agent is **not routed through the graph** -- it has its own dedicated `POST /tips` endpoint that calls the generator directly.
+
+**How it works:**
+
+1. Receives a `ChatRequest` via `POST /tips` with a Trip that includes a `destination`.
+2. Creates a single `Tips` template with `id` pre-filled and all tip fields set to `null`.
+3. Passes the template and Trip context to the `generator()` function, which fills in each tip field with 2-4 sentences.
+4. Returns a `ChatResponse` with the generated tips in the `data` field.
+
+**Tip categories:**
+
+- **transportTips**: Useful transportation tips for visitors at the destination.
+- **whenToVisitTips**: Best times to visit, crowd avoidance, upcoming holidays and festivals.
+- **safetyTips**: Tips for avoiding dangerous areas and staying safe during the trip.
 
 ## Generator Function
 
@@ -580,6 +644,7 @@ multi-agent-example/
 │       ├── restaurant/       # Restaurant agent (generator-based)
 │       ├── selfie/           # Selfie agent (generator-based)
 │       ├── sightseeing/      # Sightseeing agent (generator-based)
+│       ├── tips/             # Tips agent (generator-based, standalone route)
 │       ├── supervisor/       # Router and intent classification
 │       └── unsupportedNode.ts
 ├── models/                   # LLM configurations

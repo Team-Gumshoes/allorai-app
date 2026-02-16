@@ -1,1 +1,1 @@
-export type Intent = "arithmetic" | "flights" | "hotel" | "restaurant" | "selfie" | "sightseeing" | "unsupported";
+export type Intent = "activities" | "arithmetic" | "flights" | "hotel" | "nature" | "restaurant" | "selfie" | "unsupported";

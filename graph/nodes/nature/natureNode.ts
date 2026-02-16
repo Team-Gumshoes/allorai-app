@@ -5,7 +5,7 @@ import {
 } from "@langchain/core/messages";
 import { model } from "../../../models/openAi.js";
 import { generator } from "../../../utils/agents/generator.js";
-import type { Sights } from "../../../types/sightseeing/sights.js";
+import type { Nature } from "../../../types/nature/nature.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
 import { nanoid } from "nanoid";
@@ -27,7 +27,7 @@ function buildTripContext(trip: Trip): Record<string, unknown> {
   };
 }
 
-function createSightsTemplate(): Sights {
+function createNatureTemplate(): Nature {
   return {
     id: nanoid(),
     name: null as unknown as string,
@@ -36,7 +36,7 @@ function createSightsTemplate(): Sights {
   };
 }
 
-export async function sightseeingNode(
+export async function natureNode(
   state: AgentStateType,
 ): Promise<Partial<AgentStateType>> {
   const trip = state.trip;
@@ -45,8 +45,8 @@ export async function sightseeingNode(
   // If destination is missing, ask for it
   if (missingFields.length > 0) {
     const response = await model.invoke([
-      new SystemMessage(`You are a helpful sightseeing assistant.
-You need the user's trip destination to recommend sightseeing locations.
+      new SystemMessage(`You are a helpful nature assistant.
+You need the user's trip destination to recommend nature activities.
 Ask for the missing information concisely (1-2 sentences max).
 Missing: ${missingFields.join(", ")}`),
       ...state.messages.slice(-6),
@@ -56,21 +56,21 @@ Missing: ${missingFields.join(", ")}`),
     return { messages: [...state.messages, aiMessage] };
   }
 
-  // Generate sightseeing recommendations
+  // Generate nature activity recommendations
   try {
-    const sights = await generator<Sights>({
-      data: Array.from({ length: 5 }, () => createSightsTemplate()),
+    const natureActivities = await generator<Nature>({
+      data: Array.from({ length: 5 }, () => createNatureTemplate()),
       context: buildTripContext(trip),
       description:
-        "sightseeing location recommendations near the trip destination",
+        "nature activity recommendations near the trip destination, including hiking trails, national parks, wildlife experiences, scenic nature walks, and outdoor nature education",
     });
 
     // Generate a conversational summary
     const summaryResponse = await model.invoke([
-      new SystemMessage(`You are a helpful sightseeing assistant.
-Briefly summarize these sightseeing recommendations in 2-3 sentences.
+      new SystemMessage(`You are a helpful nature assistant.
+Briefly summarize these nature activity recommendations in 2-3 sentences.
 Be concise and helpful.`),
-      new HumanMessage(JSON.stringify(sights, null, 2)),
+      new HumanMessage(JSON.stringify(natureActivities, null, 2)),
     ]);
 
     const summary = summaryResponse.content as string;
@@ -79,14 +79,14 @@ Be concise and helpful.`),
     return {
       messages: [...state.messages, aiMessage],
       data: {
-        type: "sightseeing",
+        type: "nature",
         summary,
-        options: sights,
+        options: natureActivities,
       },
     };
   } catch (error) {
     const errorMessage = new AIMessage(
-      "Something went wrong finding sightseeing locations. Please try again later.",
+      "Something went wrong finding nature activities. Please try again later.",
     );
     return { messages: [...state.messages, errorMessage] };
   }

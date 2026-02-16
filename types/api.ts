@@ -4,7 +4,9 @@ import type { FlightResults } from "./flight/flights.js";
 import type { HotelResults } from "./hotel/hotels.js";
 import type { RestaurantResults } from "./restaurant/restaurants.js";
 import type { SelfieSpots } from "./selfie/selfieSpots.js";
-import type { Sights } from "./sightseeing/sights.js";
+import type { Activities } from "./activities/activities.js";
+import type { Nature } from "./nature/nature.js";
+import type { Tips } from "./tips/tips.js";
 
 export interface Message {
   type: "human" | "ai";
@@ -41,19 +43,33 @@ export interface SelfieResponseData {
   options?: SelfieSpots[];
 }
 
-export interface SightseeingResponseData {
-  type: "sightseeing";
+export interface ActivitiesResponseData {
+  type: "activities";
   summary?: string;
-  options?: Sights[];
+  options?: Activities[];
+}
+
+export interface NatureResponseData {
+  type: "nature";
+  summary?: string;
+  options?: Nature[];
+}
+
+export interface TipsResponseData {
+  type: "tips";
+  summary?: string;
+  options?: Tips[];
 }
 
 export type ResponseData =
   | ArithmeticResponseData
   | FlightResponseData
   | HotelResponseData
+  | NatureResponseData
   | RestaurantResponseData
   | SelfieResponseData
-  | SightseeingResponseData;
+  | ActivitiesResponseData
+  | TipsResponseData;
 
 export interface ChatRequest {
   messages: Message[];
@@ -63,6 +79,16 @@ export interface ChatRequest {
 
 export interface ChatResponse {
   messages: Message[];
+  data: ResponseData | null;
+  trip: Trip;
+}
+
+export interface TipsRequest {
+  data?: ResponseData | null;
+  trip: Trip;
+}
+
+export interface TipsResponse {
   data: ResponseData | null;
   trip: Trip;
 }
