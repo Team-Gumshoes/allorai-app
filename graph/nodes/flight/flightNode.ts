@@ -4,9 +4,16 @@ import { model } from "../../../models/openAi.js";
 import { flightTools } from "./tools.js";
 import { summarizeFlights } from "./utils/summarizeFlights.js";
 import { extractLastToolJson } from "../../../utils/agents/extractLastToolJson.js";
-import type { FlightResults } from "../../../types/flight/flights.js";
+import { generator } from "../../../utils/agents/generator.js";
+import { nanoid } from "nanoid";
+import type {
+  FlightResults,
+  FlightLeg,
+} from "../../../types/flight/flights.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
+
+const useFlightApi = process.env.USE_FLIGHT_API === "false";
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
@@ -15,6 +22,27 @@ function getMissingFields(trip: Trip): string[] {
   if (!trip.departureDate) missing.push("departure date");
   if (!trip.returnDate) missing.push("return date");
   return missing;
+}
+
+function buildTripContext(trip: Trip): Record<string, unknown> {
+  return {
+    origin: trip.origin,
+    destination: trip.destination,
+    departureDate: trip.departureDate,
+    returnDate: trip.returnDate,
+    budget: trip.budget,
+    interests: trip.interests,
+    constraints: trip.constraints,
+  };
+}
+
+function createFlightTemplate(): FlightResults {
+  return {
+    id: nanoid(),
+    price: null as unknown as number,
+    currency: null as unknown as string,
+    legs: null as unknown as FlightLeg[],
+  };
 }
 
 function buildSystemPrompt(trip: Trip): string {
@@ -51,11 +79,22 @@ Rules:
 }
 
 /**
- * Flight agent node that handles flight searches.
- * Uses createReactAgent for tool-calling, then applies post-processing
- * to format and summarize flight results.
+ * Flight agent node — uses Amadeus API (USE_FLIGHT_API=true) or
+ * LLM-generated data via the generator utility (USE_FLIGHT_API=false).
  */
 export async function flightNode(
+  state: AgentStateType,
+): Promise<Partial<AgentStateType>> {
+  if (useFlightApi) {
+    return flightNodeWithApi(state);
+  }
+  return flightNodeWithGenerator(state);
+}
+
+/**
+ * API path: uses createReactAgent with the searchFlights tool (Amadeus API).
+ */
+async function flightNodeWithApi(
   state: AgentStateType,
 ): Promise<Partial<AgentStateType>> {
   const inputMessageCount = state.messages.length;
@@ -86,7 +125,10 @@ export async function flightNode(
 
     // Validate flight data
     if (!Array.isArray(flightData) || flightData.length === 0) {
-      console.error("[flightNode] Flight data is empty or not an array:", flightData);
+      console.error(
+        "[flightNode] Flight data is empty or not an array:",
+        flightData,
+      );
       const errorMessage = new AIMessage(
         "Something went wrong. Please try again later.",
       );
@@ -119,5 +161,57 @@ export async function flightNode(
       "Something went wrong. Please try again later.",
     );
     return { messages: [...currentMessages, errorMessage] };
+  }
+}
+
+/**
+ * Generator path: uses the LLM generator utility to produce flight data.
+ */
+async function flightNodeWithGenerator(
+  state: AgentStateType,
+): Promise<Partial<AgentStateType>> {
+  const trip = state.trip;
+  const missingFields = getMissingFields(trip);
+
+  // If required fields are missing, ask for them
+  if (missingFields.length > 0) {
+    const response = await model.invoke([
+      new SystemMessage(`You are a helpful flight research assistant.
+You need the user's trip details to recommend flights.
+Ask for the missing information ONE piece at a time, in priority order.
+Be concise (1-2 sentences max).
+Missing: ${missingFields.join(", ")}`),
+      ...state.messages.slice(-6),
+    ]);
+
+    const aiMessage = new AIMessage(response.content as string);
+    return { messages: [...state.messages, aiMessage] };
+  }
+
+  try {
+    const flights = await generator<FlightResults>({
+      data: Array.from({ length: 5 }, () => createFlightTemplate()),
+      context: buildTripContext(trip),
+      description:
+        "round-trip flight options. Each flight must have exactly 2 legs: one outbound (origin to destination) and one return (destination to origin). Each leg needs a direction ('outbound' or 'return'), legDuration, and a segments array. Each segment needs duration, departure (airport IATA code + ISO time), arrival (airport IATA code + ISO time), and airline name. Prices should be realistic USD values.",
+    });
+
+    const summary = await summarizeFlights(flights, state.messages);
+    const aiMessage = new AIMessage(summary);
+
+    return {
+      messages: [...state.messages, aiMessage],
+      data: {
+        type: "flight",
+        summary,
+        options: flights,
+      },
+    };
+  } catch (error) {
+    console.error("[flightNode] Generator error:", error);
+    const errorMessage = new AIMessage(
+      "Something went wrong finding flights. Please try again later.",
+    );
+    return { messages: [...state.messages, errorMessage] };
   }
 }
