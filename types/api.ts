@@ -61,6 +61,11 @@ export interface TipsResponseData {
   options?: Tips[];
 }
 
+export interface ErrorResponseData {
+  type: "error";
+  message: string;
+}
+
 export type ResponseData =
   | ArithmeticResponseData
   | FlightResponseData
@@ -69,7 +74,8 @@ export type ResponseData =
   | RestaurantResponseData
   | SelfieResponseData
   | ActivitiesResponseData
-  | TipsResponseData;
+  | TipsResponseData
+  | ErrorResponseData;
 
 export interface ChatRequest {
   messages: Message[];
