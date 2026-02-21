@@ -9,6 +9,7 @@ import { nanoid } from "nanoid";
 import type {
   FlightResults,
   FlightLeg,
+  AirportInfo,
 } from "../../../types/flight/flights.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
@@ -42,6 +43,7 @@ function createFlightTemplate(): FlightResults {
     price: null as unknown as number,
     currency: null as unknown as string,
     legs: null as unknown as FlightLeg[],
+    destinationAirport: null as unknown as AirportInfo,
   };
 }
 
@@ -122,6 +124,27 @@ async function flightNodeWithApi(
 
     // Post-process flight results
     const flightData = extractLastToolJson<FlightResults[]>(result.messages);
+
+    // Detect tool-returned error (e.g., from validateAirportCode)
+    if (
+      flightData &&
+      !Array.isArray(flightData) &&
+      (flightData as unknown as { error: boolean }).error === true
+    ) {
+      const errorMsg =
+        (flightData as unknown as { message: string }).message ??
+        "Something went wrong.";
+
+      const errorMessage = new AIMessage(errorMsg);
+
+      return {
+        messages: [...result.messages, errorMessage],
+        data: {
+          type: "error",
+          message: errorMsg,
+        },
+      };
+    }
 
     // Validate flight data
     if (!Array.isArray(flightData) || flightData.length === 0) {
