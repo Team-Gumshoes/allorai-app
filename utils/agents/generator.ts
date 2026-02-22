@@ -1,5 +1,7 @@
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
-import { model } from "../../models/openAi.js";
+import { loadModel } from "../../models/loadModel.js";
+
+const model = loadModel("smart");
 
 interface GeneratorOptions<T> {
   /** Data template(s) with null values to be filled. Can be a single object or array. */
@@ -75,7 +77,10 @@ Return ONLY a JSON array with null values filled in.`),
 
   // Defensive: preserve any non-null values from the original template
   return parsed.map((item, index) => {
-    const original = (dataArray[index] ?? dataArray[0]!) as Record<string, unknown>;
+    const original = (dataArray[index] ?? dataArray[0]!) as Record<
+      string,
+      unknown
+    >;
     const result = { ...item } as Record<string, unknown>;
     for (const key of Object.keys(original)) {
       if (original[key] !== null && original[key] !== undefined) {

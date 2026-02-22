@@ -1,9 +1,11 @@
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { SystemMessage } from "@langchain/core/messages";
-import { model } from "../../../models/openAi.js";
+import { loadModel } from "../../../models/loadModel.js";
 import { arithmeticTools } from "./tools.js";
 import { extractLastToolJson } from "../../../utils/agents/extractLastToolJson.js";
 import type { AgentStateType } from "../../state.js";
+
+const model = loadModel("standard");
 
 const arithmeticSystemPrompt = `
 You are a helpful arithmetic assistant.
