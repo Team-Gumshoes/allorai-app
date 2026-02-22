@@ -3,4 +3,5 @@ export interface Nature {
   name: string;
   location: string;
   description: string;
+  website: string;
 }

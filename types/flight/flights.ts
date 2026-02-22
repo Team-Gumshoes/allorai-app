@@ -17,9 +17,17 @@ export interface FlightLeg {
   segments: FlightSegment[];
 }
 
+export interface AirportInfo {
+  name: string;
+  iata_code: string;
+  latitude_deg: number;
+  longitude_deg: number;
+}
+
 export interface FlightResults {
   id: string;
   price: number;
   currency: string;
   legs: FlightLeg[];
+  destinationAirport: AirportInfo;
 }

@@ -3,12 +3,18 @@ import {
   HumanMessage,
   AIMessage,
 } from "@langchain/core/messages";
-import { model } from "../../../models/openAi.js";
+import { loadModel } from "../../../utils/agents/loadModel.js";
 import { generator } from "../../../utils/agents/generator.js";
 import type { Activities } from "../../../types/activities/activities.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
 import { nanoid } from "nanoid";
+import { searchNearbyPlaces } from "../../../tools/travel/searchNearbyPlaces.js";
+
+const USE_PLACES_API = process.env.USE_PLACES_API === "true";
+const GENERATE_SUMMARIES = process.env.GENERATE_SUMMARIES === "true";
+
+const model = loadModel("smart");
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
@@ -33,6 +39,7 @@ function createActivitiesTemplate(): Activities {
     name: null as unknown as string,
     location: null as unknown as string,
     description: null as unknown as string,
+    website: null as unknown as string,
   };
 }
 
@@ -56,25 +63,37 @@ Missing: ${missingFields.join(", ")}`),
     return { messages: [...state.messages, aiMessage] };
   }
 
-  // Generate activity recommendations
   try {
-    const activities = await generator<Activities>({
-      data: Array.from({ length: 5 }, () => createActivitiesTemplate()),
-      context: buildTripContext(trip),
-      description:
-        "activity recommendations near the trip destination",
-    });
+    let activities: Activities[];
 
-    // Generate a conversational summary
-    const summaryResponse = await model.invoke([
-      new SystemMessage(`You are a helpful activities assistant.
+    if (USE_PLACES_API && trip.hotelCoords) {
+      activities = (await searchNearbyPlaces({
+        type: "activities",
+        latitude: trip.hotelCoords.latitude,
+        longitude: trip.hotelCoords.longitude,
+      })) as Activities[];
+    } else {
+      activities = await generator<Activities>({
+        data: Array.from({ length: 10 }, () => createActivitiesTemplate()),
+        context: buildTripContext(trip),
+        description: "activity recommendations near the trip destination",
+      });
+    }
+
+    let summary = "";
+    let aiMessage: AIMessage;
+    if (GENERATE_SUMMARIES) {
+      const summaryResponse = await model.invoke([
+        new SystemMessage(`You are a helpful activities assistant.
 Briefly summarize these activity recommendations in 2-3 sentences.
 Be concise and helpful.`),
-      new HumanMessage(JSON.stringify(activities, null, 2)),
-    ]);
-
-    const summary = summaryResponse.content as string;
-    const aiMessage = new AIMessage(summary);
+        new HumanMessage(JSON.stringify(activities, null, 2)),
+      ]);
+      summary = summaryResponse.content as string;
+      aiMessage = new AIMessage(summary);
+    } else {
+      aiMessage = new AIMessage("Here are your activity recommendations.");
+    }
 
     return {
       messages: [...state.messages, aiMessage],

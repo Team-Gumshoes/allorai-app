@@ -15,50 +15,53 @@ export interface Message {
 
 export interface ArithmeticResponseData {
   type: "arithmetic";
-  summary?: string;
   options?: ArithmeticResult;
 }
 
 export interface FlightResponseData {
   type: "flight";
-  summary?: string;
+  summary: string;
   options?: FlightResults[];
 }
 
 export interface HotelResponseData {
   type: "hotel";
-  summary?: string;
+  summary: string;
   options?: HotelResults[];
 }
 
 export interface RestaurantResponseData {
   type: "restaurant";
-  summary?: string;
+  summary: string;
   options?: RestaurantResults[];
 }
 
 export interface SelfieResponseData {
   type: "selfie";
-  summary?: string;
+  summary: string;
   options?: SelfieSpots[];
 }
 
 export interface ActivitiesResponseData {
   type: "activities";
-  summary?: string;
+  summary: string;
   options?: Activities[];
 }
 
 export interface NatureResponseData {
   type: "nature";
-  summary?: string;
+  summary: string;
   options?: Nature[];
 }
 
 export interface TipsResponseData {
   type: "tips";
-  summary?: string;
   options?: Tips[];
+}
+
+export interface ErrorResponseData {
+  type: "error";
+  message: string;
 }
 
 export type ResponseData =
@@ -69,7 +72,8 @@ export type ResponseData =
   | RestaurantResponseData
   | SelfieResponseData
   | ActivitiesResponseData
-  | TipsResponseData;
+  | TipsResponseData
+  | ErrorResponseData;
 
 export interface ChatRequest {
   messages: Message[];

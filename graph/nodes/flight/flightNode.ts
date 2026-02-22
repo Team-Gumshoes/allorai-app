@@ -1,6 +1,6 @@
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { SystemMessage, AIMessage } from "@langchain/core/messages";
-import { model } from "../../../models/openAi.js";
+import { loadModel } from "../../../utils/agents/loadModel.js";
 import { flightTools } from "./tools.js";
 import { summarizeFlights } from "./utils/summarizeFlights.js";
 import { extractLastToolJson } from "../../../utils/agents/extractLastToolJson.js";
@@ -9,11 +9,15 @@ import { nanoid } from "nanoid";
 import type {
   FlightResults,
   FlightLeg,
+  AirportInfo,
 } from "../../../types/flight/flights.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
 
 const useFlightApi = process.env.USE_FLIGHT_API === "false";
+const GENERATE_SUMMARIES = process.env.GENERATE_SUMMARIES === "true";
+
+const model = loadModel("smart");
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
@@ -42,6 +46,7 @@ function createFlightTemplate(): FlightResults {
     price: null as unknown as number,
     currency: null as unknown as string,
     legs: null as unknown as FlightLeg[],
+    destinationAirport: null as unknown as AirportInfo,
   };
 }
 
@@ -123,6 +128,27 @@ async function flightNodeWithApi(
     // Post-process flight results
     const flightData = extractLastToolJson<FlightResults[]>(result.messages);
 
+    // Detect tool-returned error (e.g., from validateAirportCode)
+    if (
+      flightData &&
+      !Array.isArray(flightData) &&
+      (flightData as unknown as { error: boolean }).error === true
+    ) {
+      const errorMsg =
+        (flightData as unknown as { message: string }).message ??
+        "Something went wrong.";
+
+      const errorMessage = new AIMessage(errorMsg);
+
+      return {
+        messages: [...result.messages, errorMessage],
+        data: {
+          type: "error",
+          message: errorMsg,
+        },
+      };
+    }
+
     // Validate flight data
     if (!Array.isArray(flightData) || flightData.length === 0) {
       console.error(
@@ -136,15 +162,19 @@ async function flightNodeWithApi(
     }
 
     // Summarize the flights - non-fatal if LLM call fails
-    let summary: string;
-    try {
-      summary = await summarizeFlights(flightData, result.messages);
-    } catch (summarizeError) {
-      console.error("[flightNode] Summarization failed:", summarizeError);
-      summary = "Here are the flight options I found.";
+    let summary = "";
+    if (GENERATE_SUMMARIES) {
+      try {
+        summary = await summarizeFlights(flightData, result.messages);
+      } catch (summarizeError) {
+        console.error("[flightNode] Summarization failed:", summarizeError);
+        summary = "Here are the flight options I found.";
+      }
     }
 
-    const finalMessage = new AIMessage(summary);
+    const finalMessage = new AIMessage(
+      summary || "Here are the flight options I found.",
+    );
 
     // Return updated state with data extracted
     return {
@@ -196,8 +226,10 @@ Missing: ${missingFields.join(", ")}`),
         "round-trip flight options. Each flight must have exactly 2 legs: one outbound (origin to destination) and one return (destination to origin). Each leg needs a direction ('outbound' or 'return'), legDuration, and a segments array. Each segment needs duration, departure (airport IATA code + ISO time), arrival (airport IATA code + ISO time), and airline name. Prices should be realistic USD values.",
     });
 
-    const summary = await summarizeFlights(flights, state.messages);
-    const aiMessage = new AIMessage(summary);
+    const summary = GENERATE_SUMMARIES
+      ? await summarizeFlights(flights, state.messages)
+      : "";
+    const aiMessage = new AIMessage(summary || "Here are your flight options.");
 
     return {
       messages: [...state.messages, aiMessage],

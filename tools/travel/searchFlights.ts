@@ -4,8 +4,10 @@ import type {
   FlightResults,
   FlightLeg,
   FlightSegment,
+  AirportInfo,
 } from "../../types/flight/flights.js";
 import { getAmadeusToken } from "../../utils/amadeus/tokenManager.js";
+import { validateAirportCode } from "./validateAirport.js";
 import { nanoid } from "nanoid";
 
 /**
@@ -23,6 +25,16 @@ export const searchFlights = tool(
     returnDate,
     includedAirlinesCodes,
   }) => {
+    let destinationAirportInfo: AirportInfo;
+    try {
+      await validateAirportCode(originLocationCode);
+      destinationAirportInfo = await validateAirportCode(
+        destinationLocationCode,
+      );
+    } catch {
+      return JSON.stringify({ error: true, message: "Invalid Airport." });
+    }
+
     const token = await getAmadeusToken();
 
     const url = new URL(
@@ -81,6 +93,7 @@ export const searchFlights = tool(
         price: 0,
         currency: "",
         legs: [],
+        destinationAirport: destinationAirportInfo,
       };
 
       // const duration = offer.duration;

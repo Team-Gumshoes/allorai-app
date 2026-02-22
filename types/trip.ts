@@ -9,6 +9,8 @@ export interface Trip {
   hotel: string | null;
   interests: string[];
   constraints: string[];
+  destinationCoords: { latitude: number; longitude: number } | null;
+  hotelCoords: { latitude: number; longitude: number } | null;
 }
 
 export function createEmptyTrip(): Trip {
@@ -23,5 +25,7 @@ export function createEmptyTrip(): Trip {
     hotel: null,
     interests: [],
     constraints: [],
+    destinationCoords: null,
+    hotelCoords: null,
   };
 }

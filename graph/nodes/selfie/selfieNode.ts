@@ -3,12 +3,18 @@ import {
   HumanMessage,
   AIMessage,
 } from "@langchain/core/messages";
-import { model } from "../../../models/openAi.js";
+import { loadModel } from "../../../utils/agents/loadModel.js";
 import { generator } from "../../../utils/agents/generator.js";
 import type { SelfieSpots } from "../../../types/selfie/selfieSpots.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
 import { nanoid } from "nanoid";
+import { searchNearbyPlaces } from "../../../tools/travel/searchNearbyPlaces.js";
+
+const USE_PLACES_API = process.env.USE_PLACES_API === "true";
+const GENERATE_SUMMARIES = process.env.GENERATE_SUMMARIES === "true";
+
+const model = loadModel("smart");
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
@@ -33,6 +39,7 @@ function createSelfieTemplate(): SelfieSpots {
     name: null as unknown as string,
     location: null as unknown as string,
     description: null as unknown as string,
+    website: null as unknown as string,
   };
 }
 
@@ -56,25 +63,38 @@ Missing: ${missingFields.join(", ")}`),
     return { messages: [...state.messages, aiMessage] };
   }
 
-  // Generate selfie spot recommendations
   try {
-    const selfieSpots = await generator<SelfieSpots>({
-      data: Array.from({ length: 5 }, () => createSelfieTemplate()),
-      context: buildTripContext(trip),
-      description:
-        "selfie spot recommendations near the trip destination where tourists can take great selfie photos",
-    });
+    let selfieSpots: SelfieSpots[];
 
-    // Generate a conversational summary
-    const summaryResponse = await model.invoke([
-      new SystemMessage(`You are a helpful selfie spot assistant.
+    if (USE_PLACES_API && trip.hotelCoords) {
+      selfieSpots = (await searchNearbyPlaces({
+        type: "selfie",
+        latitude: trip.hotelCoords.latitude,
+        longitude: trip.hotelCoords.longitude,
+      })) as SelfieSpots[];
+    } else {
+      selfieSpots = await generator<SelfieSpots>({
+        data: Array.from({ length: 5 }, () => createSelfieTemplate()),
+        context: buildTripContext(trip),
+        description:
+          "selfie spot recommendations near the trip destination where tourists can take great selfie photos",
+      });
+    }
+
+    let summary = "";
+    let aiMessage: AIMessage;
+    if (GENERATE_SUMMARIES) {
+      const summaryResponse = await model.invoke([
+        new SystemMessage(`You are a helpful selfie spot assistant.
 Briefly summarize these selfie spot recommendations in 2-3 sentences.
 Be concise and helpful.`),
-      new HumanMessage(JSON.stringify(selfieSpots, null, 2)),
-    ]);
-
-    const summary = summaryResponse.content as string;
-    const aiMessage = new AIMessage(summary);
+        new HumanMessage(JSON.stringify(selfieSpots, null, 2)),
+      ]);
+      summary = summaryResponse.content as string;
+      aiMessage = new AIMessage(summary);
+    } else {
+      aiMessage = new AIMessage("Here are your selfie spot recommendations.");
+    }
 
     return {
       messages: [...state.messages, aiMessage],
