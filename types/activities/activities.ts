@@ -3,4 +3,5 @@ export interface Activities {
   name: string;
   location: string;
   description: string;
+  website: string;
 }
