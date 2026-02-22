@@ -3,7 +3,7 @@ import {
   HumanMessage,
   AIMessage,
 } from "@langchain/core/messages";
-import { loadModel } from "../../../models/loadModel.js";
+import { loadModel } from "../../../utils/agents/loadModel.js";
 import { generator } from "../../../utils/agents/generator.js";
 import type { RestaurantResults } from "../../../types/restaurant/restaurants.js";
 import type { AgentStateType } from "../../state.js";

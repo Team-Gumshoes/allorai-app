@@ -1,6 +1,6 @@
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { SystemMessage } from "@langchain/core/messages";
-import { loadModel } from "../../../models/loadModel.js";
+import { loadModel } from "../../../utils/agents/loadModel.js";
 import { arithmeticTools } from "./tools.js";
 import { extractLastToolJson } from "../../../utils/agents/extractLastToolJson.js";
 import type { AgentStateType } from "../../state.js";

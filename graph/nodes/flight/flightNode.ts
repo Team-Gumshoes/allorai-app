@@ -1,6 +1,6 @@
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { SystemMessage, AIMessage } from "@langchain/core/messages";
-import { loadModel } from "../../../models/loadModel.js";
+import { loadModel } from "../../../utils/agents/loadModel.js";
 import { flightTools } from "./tools.js";
 import { summarizeFlights } from "./utils/summarizeFlights.js";
 import { extractLastToolJson } from "../../../utils/agents/extractLastToolJson.js";

@@ -1,5 +1,5 @@
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
-import { loadModel } from "../../models/loadModel.js";
+import { loadModel } from "./loadModel.js";
 
 const model = loadModel("smart");
 

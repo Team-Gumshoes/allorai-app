@@ -4,7 +4,7 @@ import {
   SystemMessage,
 } from "@langchain/core/messages";
 import type { FlightResults } from "../../../../types/flight/flights.js";
-import { loadModel } from "../../../../models/loadModel.js";
+import { loadModel } from "../../../../utils/agents/loadModel.js";
 
 const model = loadModel("standard");
 

@@ -1,7 +1,7 @@
 import { SystemMessage, HumanMessage } from "@langchain/core/messages";
 import type { BaseMessage } from "@langchain/core/messages";
 import type { Intent } from "../../../../types/intents.js";
-import { loadModel } from "../../../../models/loadModel.js";
+import { loadModel } from "../../../../utils/agents/loadModel.js";
 
 const model = loadModel("fast");
 
