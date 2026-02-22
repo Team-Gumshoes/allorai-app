@@ -3,7 +3,7 @@ import {
   HumanMessage,
   AIMessage,
 } from "@langchain/core/messages";
-import { model } from "../../../models/openAi.js";
+import { loadModel } from "../../../utils/agents/loadModel.js";
 import { generator } from "../../../utils/agents/generator.js";
 import type { Nature } from "../../../types/nature/nature.js";
 import type { AgentStateType } from "../../state.js";
@@ -12,6 +12,8 @@ import { nanoid } from "nanoid";
 import { searchNearbyPlaces } from "../../../tools/travel/searchNearbyPlaces.js";
 
 const USE_PLACES_API = process.env.USE_PLACES_API === "true";
+
+const model = loadModel("smart");
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];

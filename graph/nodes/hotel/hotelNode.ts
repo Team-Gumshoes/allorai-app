@@ -3,7 +3,7 @@ import {
   HumanMessage,
   AIMessage,
 } from "@langchain/core/messages";
-import { model } from "../../../models/openAi.js";
+import { loadModel } from "../../../utils/agents/loadModel.js";
 import { generator } from "../../../utils/agents/generator.js";
 import type { HotelResults } from "../../../types/hotel/hotels.js";
 import type { AgentStateType } from "../../state.js";
@@ -13,6 +13,8 @@ import { searchNearbyPlaces } from "../../../tools/travel/searchNearbyPlaces.js"
 import { validateAirportCode } from "../../../tools/travel/validateAirport.js";
 
 const USE_PLACES_API = process.env.USE_PLACES_API === "true";
+
+const model = loadModel("smart");
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];

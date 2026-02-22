@@ -1,6 +1,6 @@
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { SystemMessage, AIMessage } from "@langchain/core/messages";
-import { model } from "../../../models/openAi.js";
+import { loadModel } from "../../../utils/agents/loadModel.js";
 import { flightTools } from "./tools.js";
 import { summarizeFlights } from "./utils/summarizeFlights.js";
 import { extractLastToolJson } from "../../../utils/agents/extractLastToolJson.js";
@@ -15,6 +15,8 @@ import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
 
 const useFlightApi = process.env.USE_FLIGHT_API === "false";
+
+const model = loadModel("smart");
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
