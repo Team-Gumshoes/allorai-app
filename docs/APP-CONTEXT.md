@@ -4,31 +4,33 @@ A trip planning application built with LangChain's LangGraph technology, impleme
 
 ## Architecture Overview
 
-This application uses a **supervisor pattern** where a central supervisor agent analyzes user intent and routes requests to specialized agents. Each agent operates as a separate node in the graph with access to domain-specific tools or the generator function for LLM-generated data.
+This application uses a **supervisor pattern** where a central supervisor agent analyzes user intent and routes requests to specialized agents. Each agent operates as a separate node in the graph with access to domain-specific tools, the Google Places API, or the generator function for LLM-generated data.
 
 ```
-START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant Agent | Selfie Agent | Sightseeing Agent | Unsupported Node] -> END
+START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant Agent | Activities Agent | Nature Agent | Selfie Agent | Unsupported Node] -> END
 ```
 
-### Two Agent Patterns
+### Three Agent Patterns
 
-The system supports two types of agent nodes:
+The system supports three types of agent nodes:
 
 1. **Tool-based agents** use `createReactAgent` from LangGraph with external API tools. The arithmetic and flight agents follow this pattern.
-2. **Generator-based agents** use direct `model.invoke()` calls for conversation and the `generator()` utility for data generation. This is for agents without third-party API integrations. The restaurant, hotel, sightseeing, and selfie agents follow this pattern.
+2. **Places API + Generator agents** first attempt to fetch real data from the Google Places API (when `USE_PLACES_API=true` and coordinates are available), then fall back to the `generator()` utility if not. The hotel, restaurant, activities, nature, and selfie agents follow this pattern.
+3. **Generator-only agents** use the `generator()` utility exclusively. The tips agent follows this pattern.
 
 ### Current Agents
 
-| Agent       | Purpose                                                          | Pattern   | Tools/Data Source               |
-| ----------- | ---------------------------------------------------------------- | --------- | ------------------------------- |
-| Arithmetic  | Basic math operations (+, -, \*, /) between two numbers          | Tool      | add, subtract, multiply, divide |
-| Flight      | Flight search using Amadeus API                                  | Tool      | searchFlights                   |
-| Hotel       | Hotel recommendations based on Trip context                      | Generator | generator()                     |
-| Restaurant  | Restaurant recommendations based on Trip context                 | Generator | generator()                     |
-| Sightseeing | Sightseeing and attraction recommendations based on Trip context | Generator | generator()                     |
-| Selfie      | Selfie spot recommendations based on Trip context                | Generator | generator()                     |
-| Tips        | Transport, when-to-visit, and safety tips (standalone `/tips` route) | Generator | generator()                 |
-| Unsupported | Fallback for unrecognized requests                               | None      | None                            |
+| Agent      | Purpose                                                                    | Pattern                 | Data Source                              |
+| ---------- | -------------------------------------------------------------------------- | ----------------------- | ---------------------------------------- |
+| Arithmetic | Basic math operations (+, -, \*, /) between two numbers                    | Tool                    | add, subtract, multiply, divide          |
+| Flight     | Flight search using Amadeus API                                            | Tool                    | searchFlights (or generator fallback)    |
+| Hotel      | Hotel recommendations based on Trip context                                | Places API + Generator  | searchNearbyPlaces, generator()          |
+| Restaurant | Restaurant recommendations based on Trip context                           | Places API + Generator  | searchNearbyPlaces, generator()          |
+| Activities | Tourist attraction and activity recommendations based on Trip context       | Places API + Generator  | searchNearbyPlaces, generator()          |
+| Nature     | Nature spot recommendations (parks, trails) based on Trip context          | Places API + Generator  | searchNearbyPlaces, generator()          |
+| Selfie     | Selfie spot recommendations based on Trip context                          | Places API + Generator  | searchNearbyPlaces, generator()          |
+| Tips       | Transport, when-to-visit, and safety tips (standalone `/tips` route)       | Generator               | generator()                              |
+| Unsupported| Fallback for unrecognized requests                                         | None                    | None                                     |
 
 ## Graph Structure
 
@@ -41,8 +43,9 @@ const workflow = new StateGraph(AgentState)
   .addNode("flightAgent", flightNode)
   .addNode("hotelAgent", hotelNode)
   .addNode("restaurantAgent", restaurantNode)
+  .addNode("activitiesAgent", activityNode)
+  .addNode("natureAgent", natureNode)
   .addNode("selfieAgent", selfieNode)
-  .addNode("sightseeingAgent", sightseeingNode)
   .addNode("unsupportedNode", unsupportedNode)
   .addEdge(START, "router")
   .addConditionalEdges("router", routeByIntent)
@@ -50,8 +53,9 @@ const workflow = new StateGraph(AgentState)
   .addEdge("flightAgent", END)
   .addEdge("hotelAgent", END)
   .addEdge("restaurantAgent", END)
+  .addEdge("activitiesAgent", END)
+  .addEdge("natureAgent", END)
   .addEdge("selfieAgent", END)
-  .addEdge("sightseeingAgent", END)
   .addEdge("unsupportedNode", END);
 
 export const graph = workflow.compile();
@@ -84,7 +88,7 @@ export const AgentState = Annotation.Root({
 | `messages` | `BaseMessage[]`        | Conversation history (from MessagesAnnotation)           |
 | `intent`   | `Intent \| null`       | Classified intent for routing                            |
 | `trip`     | `Trip`                 | Trip planning context (origin, destination, dates, etc.) |
-| `data`     | `ResponseData \| null` | Extracted data from tool calls or generator              |
+| `data`     | `ResponseData \| null` | Extracted data from tool calls, Places API, or generator |
 
 ## Agents
 
@@ -103,7 +107,7 @@ The router classifies user intent and determines which agent should handle the r
 
 - Examines the last 6 messages (3 conversation turns) for context
 - Handles follow-up questions intelligently (maintains intent during clarification)
-- Returns one of: `arithmetic`, `flights`, `hotel`, `restaurant`, `selfie`, `sightseeing`, or `unsupported`
+- Returns one of: `arithmetic`, `flights`, `hotel`, `restaurant`, `activities`, `nature`, `selfie`, or `unsupported`
 
 ```typescript
 export function routeByIntent(state: AgentStateType): string {
@@ -116,10 +120,12 @@ export function routeByIntent(state: AgentStateType): string {
       return "hotelAgent";
     case "restaurant":
       return "restaurantAgent";
+    case "activities":
+      return "activitiesAgent";
+    case "nature":
+      return "natureAgent";
     case "selfie":
       return "selfieAgent";
-    case "sightseeing":
-      return "sightseeingAgent";
     default:
       return "unsupportedNode";
   }
@@ -163,7 +169,7 @@ const arithmeticAgent = createReactAgent({
 
 **Location:** `graph/nodes/flight/`
 
-Searches for round-trip flights using the Amadeus API.
+Searches for round-trip flights using the Amadeus API when `USE_FLIGHT_API=true`, with LLM-generated fallback.
 
 **Files:**
 
@@ -174,6 +180,7 @@ Searches for round-trip flights using the Amadeus API.
 **Tools:**
 
 - `searchFlights` - Searches Amadeus API for round-trip flights
+- `validateAirport` - Validates IATA airport codes against local `airports.json` and returns coordinates
 
 **Dynamic System Prompt:**
 The flight agent builds a context-aware system prompt that includes current trip details and missing required fields:
@@ -184,13 +191,13 @@ The flight agent builds a context-aware system prompt that includes current trip
 - Return date
 
 **Post-Processing:**
-After fetching flight data, the agent uses `summarizeFlights()` to generate a human-readable summary using a separate LLM call (Gemini model).
+After fetching flight data, the agent uses `summarizeFlights()` to generate a human-readable summary using a separate LLM call.
 
 ### Hotel Agent
 
 **Location:** `graph/nodes/hotel/`
 
-Generates hotel recommendations using the generator function. Follows the same generator-based pattern as the restaurant agent.
+Generates hotel recommendations using the Google Places API when destination coordinates are available, falling back to the generator function.
 
 **Files:**
 
@@ -198,10 +205,10 @@ Generates hotel recommendations using the generator function. Follows the same g
 
 **How it works:**
 
-The hotel node follows the same two-phase approach as the restaurant agent:
-
-1. **Phase 1 -- Check context:** Validates that `trip.destination` exists. If missing, uses `model.invoke()` to ask the user for it.
-2. **Phase 2 -- Generate data:** Creates 5 `HotelResults` templates with all fields set to `null`, passes them to `generator()` with Trip context (destination, hotel, budget, interests, constraints), then generates a conversational summary.
+1. **Check context:** Validates that `trip.destination` exists. If missing, uses `model.invoke()` to ask the user for it.
+2. **Fetch data:** If `USE_PLACES_API=true` and `trip.destinationCoords` is set, calls `searchNearbyPlaces({ type: "hotel", ... })` to fetch real hotel data. Otherwise, creates 5 `HotelResults` templates with all fields set to `null` and passes them to `generator()`.
+3. **Summarize:** If `GENERATE_SUMMARIES=true`, generates a conversational summary via a second LLM call.
+4. Returns both the summary message and the structured `HotelResponseData`.
 
 **Response data type:**
 
@@ -217,7 +224,7 @@ export interface HotelResponseData {
 
 **Location:** `graph/nodes/restaurant/`
 
-Generates restaurant recommendations using the generator function. This agent does not use `createReactAgent` or external APIs.
+Generates restaurant recommendations using the Google Places API when hotel coordinates are available, falling back to the generator function.
 
 **Files:**
 
@@ -225,12 +232,12 @@ Generates restaurant recommendations using the generator function. This agent do
 
 **How it works:**
 
-The restaurant node follows a two-phase approach:
+1. **Check context:** Validates that `trip.destination` exists. If missing, uses `model.invoke()` to ask the user for it.
+2. **Fetch data:** If `USE_PLACES_API=true` and `trip.hotelCoords` is set, calls `searchNearbyPlaces({ type: "restaurant", ... })` to fetch real restaurant data. Otherwise, creates `RestaurantResults` templates with all fields set to `null` and passes them to `generator()`.
+3. **Summarize:** If `GENERATE_SUMMARIES=true`, generates a conversational summary via a second LLM call.
+4. Returns both the summary message and the structured `RestaurantResponseData`.
 
-1. **Phase 1 -- Check context:** Validates that `trip.destination` exists. If missing, uses `model.invoke()` to ask the user for it.
-2. **Phase 2 -- Generate data:** Creates 3 `RestaurantResults` templates with all fields set to `null`, passes them to `generator()` with Trip context (destination, hotel, budget, interests, constraints), then generates a conversational summary.
-
-**Why not `createReactAgent`:** `createReactAgent` requires a non-empty tools array. Since the restaurant agent has no external API, it uses direct `model.invoke()` calls for conversation and the `generator()` utility for data production.
+**Why not `createReactAgent`:** `createReactAgent` requires a non-empty tools array. Since these agents call `searchNearbyPlaces` directly (not as a LangChain tool), they use direct `model.invoke()` for conversation and the Places API / generator for data production.
 
 **Context passed to generator:**
 
@@ -257,30 +264,57 @@ export interface RestaurantResponseData {
 }
 ```
 
-### Sightseeing Agent
+### Activities Agent
 
-**Location:** `graph/nodes/sightseeing/`
+**Location:** `graph/nodes/activities/`
 
-Generates sightseeing and tourist attraction recommendations using the generator function. Follows the same generator-based pattern as the hotel and restaurant agents.
+Generates tourist attraction and activity recommendations using the Google Places API when hotel coordinates are available, falling back to the generator function.
 
 **Files:**
 
-- `sightseeingNode.ts` - Agent node implementation
+- `activityNode.ts` - Agent node implementation
 
 **How it works:**
 
-The sightseeing node follows the same two-phase approach as the hotel and restaurant agents:
-
-1. **Phase 1 -- Check context:** Validates that `trip.destination` exists. If missing, uses `model.invoke()` to ask the user for it.
-2. **Phase 2 -- Generate data:** Creates 5 `Sights` templates with all fields set to `null`, passes them to `generator()` with Trip context (destination, hotel, budget, interests, constraints), then generates a conversational summary.
+1. **Check context:** Validates that `trip.destination` exists. If missing, uses `model.invoke()` to ask the user for it.
+2. **Fetch data:** If `USE_PLACES_API=true` and `trip.hotelCoords` is set, calls `searchNearbyPlaces({ type: "activities", ... })` which searches for tourist attractions, amusement parks, museums, art galleries, and zoos. Otherwise, creates 10 `Activities` templates with all fields set to `null` and passes them to `generator()`.
+3. **Summarize:** If `GENERATE_SUMMARIES=true`, generates a conversational summary via a second LLM call.
+4. Returns both the summary message and the structured `ActivitiesResponseData`.
 
 **Response data type:**
 
 ```typescript
-export interface SightseeingResponseData {
-  type: "sightseeing";
+export interface ActivitiesResponseData {
+  type: "activities";
   summary?: string;
-  options?: Sights[];
+  options?: Activities[];
+}
+```
+
+### Nature Activities Agent
+
+**Location:** `graph/nodes/nature/`
+
+Generates nature spot recommendations using the Google Places API when hotel coordinates are available, falling back to the generator function.
+
+**Files:**
+
+- `natureNode.ts` - Agent node implementation
+
+**How it works:**
+
+1. **Check context:** Validates that `trip.destination` exists. If missing, uses `model.invoke()` to ask the user for it.
+2. **Fetch data:** If `USE_PLACES_API=true` and `trip.hotelCoords` is set, calls `searchNearbyPlaces({ type: "nature", ... })` which searches for parks, national parks, campgrounds, and hiking areas. Otherwise, creates 5 `Nature` templates with all fields set to `null` and passes them to `generator()`.
+3. **Summarize:** If `GENERATE_SUMMARIES=true`, generates a conversational summary via a second LLM call.
+4. Returns both the summary message and the structured `NatureResponseData`.
+
+**Response data type:**
+
+```typescript
+export interface NatureResponseData {
+  type: "nature";
+  summary?: string;
+  options?: Nature[];
 }
 ```
 
@@ -288,7 +322,7 @@ export interface SightseeingResponseData {
 
 **Location:** `graph/nodes/selfie/`
 
-Generates selfie spot recommendations using the generator function. Follows the same generator-based pattern as the hotel, restaurant, and sightseeing agents.
+Generates selfie spot recommendations using the Google Places API when hotel coordinates are available, falling back to the generator function.
 
 **Files:**
 
@@ -296,10 +330,10 @@ Generates selfie spot recommendations using the generator function. Follows the 
 
 **How it works:**
 
-The selfie node follows the same two-phase approach as the other generator-based agents:
-
-1. **Phase 1 -- Check context:** Validates that `trip.destination` exists. If missing, uses `model.invoke()` to ask the user for it.
-2. **Phase 2 -- Generate data:** Creates 5 `SelfieSpots` templates with all fields set to `null`, passes them to `generator()` with Trip context (destination, hotel, budget, interests, constraints), then generates a conversational summary.
+1. **Check context:** Validates that `trip.destination` exists. If missing, uses `model.invoke()` to ask the user for it.
+2. **Fetch data:** If `USE_PLACES_API=true` and `trip.hotelCoords` is set, calls `searchNearbyPlaces({ type: "selfie", ... })` which searches for tourist attractions, museums, art galleries, and zoos. Otherwise, creates 5 `SelfieSpots` templates with all fields set to `null` and passes them to `generator()`.
+3. **Summarize:** If `GENERATE_SUMMARIES=true`, generates a conversational summary via a second LLM call.
+4. Returns both the summary message and the structured `SelfieResponseData`.
 
 **Response data type:**
 
@@ -354,7 +388,7 @@ Simple fallback handler that returns a friendly message when the user's request 
 
 **Location:** `utils/agents/generator.ts`
 
-A generic utility that calls an LLM to fill `null` values in JSON data with contextually appropriate values. Used by agents that need LLM-generated data instead of (or in addition to) third-party API data.
+A generic utility that calls an LLM to fill `null` values in JSON data with contextually appropriate values. Used as a primary data source (tips agent) or as a fallback when the Google Places API is disabled or coordinates are unavailable.
 
 ### Function Signature
 
@@ -376,14 +410,14 @@ export async function generator<T extends object>(
 
 1. Normalizes input to an array.
 2. Scans for null fields and lists them in the LLM prompt.
-3. Calls `model.invoke()` with system + human messages.
+3. Calls `model.invoke()` with system + human messages using the `smart` model tier.
 4. Parses JSON response (with markdown code fence fallback).
 5. Defensively preserves non-null values from the original template.
 6. Always returns `T[]`.
 
 ### Use Cases
 
-- **All fields null (placeholder data):** The restaurant agent creates templates where every field is null and the generator fills all of them based on Trip context.
+- **All fields null (placeholder data):** When `USE_PLACES_API=false` or coordinates are unavailable, agents create templates where every field is null and the generator fills all of them based on Trip context.
 - **Partial null fields (supplementing API data):** An agent fetches data from an API but some fields come back as null. The generator fills only the missing fields while preserving existing data.
 
 ## Tools
@@ -428,13 +462,51 @@ export const arithmeticTools = Object.values(arithmeticToolsByName);
 
 ### Available Tools
 
-| Tool            | Location                        | Agent      | Description                      |
-| --------------- | ------------------------------- | ---------- | -------------------------------- |
-| `add`           | `tools/arithmetic/add.ts`       | Arithmetic | Adds two numbers                 |
-| `subtract`      | `tools/arithmetic/subtract.ts`  | Arithmetic | Subtracts two numbers            |
-| `multiply`      | `tools/arithmetic/multiply.ts`  | Arithmetic | Multiplies two numbers           |
-| `divide`        | `tools/arithmetic/divide.ts`    | Arithmetic | Divides two numbers              |
-| `searchFlights` | `tools/travel/searchFlights.ts` | Flight     | Searches Amadeus API for flights |
+| Tool                  | Location                              | Agent      | Description                                                        |
+| --------------------- | ------------------------------------- | ---------- | ------------------------------------------------------------------ |
+| `add`                 | `tools/arithmetic/add.ts`             | Arithmetic | Adds two numbers                                                   |
+| `subtract`            | `tools/arithmetic/subtract.ts`        | Arithmetic | Subtracts two numbers                                              |
+| `multiply`            | `tools/arithmetic/multiply.ts`        | Arithmetic | Multiplies two numbers                                             |
+| `divide`              | `tools/arithmetic/divide.ts`          | Arithmetic | Divides two numbers                                                |
+| `searchFlights`       | `tools/travel/searchFlights.ts`       | Flight     | Searches Amadeus API for round-trip flights                        |
+| `validateAirport`     | `tools/travel/validateAirport.ts`     | Flight     | Validates IATA airport codes against `airports.json`; returns name and coordinates |
+| `searchNearbyPlaces`  | `tools/travel/searchNearbyPlaces.ts`  | Hotel, Restaurant, Activities, Nature, Selfie | Calls Google Places API within a 10km radius; returns typed results per category |
+
+### searchNearbyPlaces
+
+**Location:** `tools/travel/searchNearbyPlaces.ts`
+
+Calls the Google Places API (`places:searchNearby`) and returns typed results shaped to the appropriate domain type. Requires `GOOGLE_PLACES_API_KEY` in the environment.
+
+```typescript
+await searchNearbyPlaces({
+  type: "activities",   // "hotel" | "restaurant" | "activities" | "nature" | "selfie"
+  latitude: 35.6892,
+  longitude: 139.6922,
+});
+// Returns Activities[] with id, name, location, description, website
+```
+
+Each `type` maps to a different set of `includedTypes` in the Places API request:
+
+| type          | includedTypes                                              |
+| ------------- | ---------------------------------------------------------- |
+| `hotel`       | hotel                                                      |
+| `restaurant`  | restaurant, fast_food_restaurant, cafe, food_court         |
+| `activities`  | tourist_attraction, amusement_park, museum, art_gallery, zoo |
+| `nature`      | park, national_park, campground, hiking_area               |
+| `selfie`      | tourist_attraction, museum, art_gallery, zoo               |
+
+### validateAirport
+
+**Location:** `tools/travel/validateAirport.ts`
+
+Validates an IATA airport code against the local `data/airports/airports.json` lookup table and returns the airport's full name and geographic coordinates. Used by the flight agent to resolve airports and populate `trip.destinationCoords`.
+
+```typescript
+// Returns: { name, iata_code, latitude_deg, longitude_deg }
+await validateAirportCode("JFK");
+```
 
 ## Types & Data Flow
 
@@ -485,64 +557,10 @@ export type ResponseData =
   | FlightResponseData
   | HotelResponseData
   | RestaurantResponseData
+  | ActivitiesResponseData
+  | NatureResponseData
   | SelfieResponseData
-  | SightseeingResponseData
   | TipsResponseData;
-
-export interface ArithmeticResponseData {
-  type: "arithmetic";
-  summary?: string;
-  options?: ArithmeticResult;
-}
-
-export interface FlightResponseData {
-  type: "flight";
-  summary?: string;
-  options?: FlightResults[];
-}
-
-export interface HotelResponseData {
-  type: "hotel";
-  summary?: string;
-  options?: HotelResults[];
-}
-
-export interface RestaurantResponseData {
-  type: "restaurant";
-  summary?: string;
-  options?: RestaurantResults[];
-}
-
-export interface SelfieResponseData {
-  type: "selfie";
-  summary?: string;
-  options?: SelfieSpots[];
-}
-
-export interface SightseeingResponseData {
-  type: "sightseeing";
-  summary?: string;
-  options?: Sights[];
-}
-
-export interface TipsResponseData {
-  type: "tips";
-  summary?: string;
-  options?: Tips[];
-}
-```
-
-### Tips Types
-
-**Location:** `types/tips/tips.ts`
-
-```typescript
-export interface Tips {
-  id: string;
-  transportTips: string;
-  whenToVisitTips: string;
-  safetyTips: string;
-}
 ```
 
 ### Trip State
@@ -561,8 +579,25 @@ export interface Trip {
   hotel: string | null;
   interests: string[];
   constraints: string[];
+  destinationCoords: { latitude: number; longitude: number } | null;
+  hotelCoords: { latitude: number; longitude: number } | null;
 }
 ```
+
+| Field              | Type                                          | Purpose                                                               |
+| ------------------ | --------------------------------------------- | --------------------------------------------------------------------- |
+| `origin`           | `string \| null`                              | Trip origin city or airport code                                      |
+| `destination`      | `string \| null`                              | Trip destination city or airport code                                 |
+| `departureFlight`  | `string \| null`                              | Selected departure flight identifier                                  |
+| `returnFlight`     | `string \| null`                              | Selected return flight identifier                                     |
+| `departureDate`    | `string \| null`                              | Departure date (YYYY-MM-DD)                                           |
+| `returnDate`       | `string \| null`                              | Return date (YYYY-MM-DD)                                              |
+| `budget`           | `number \| null`                              | Trip budget in USD                                                    |
+| `hotel`            | `string \| null`                              | Hotel name selected by the user                                       |
+| `interests`        | `string[]`                                    | User interests for personalized recommendations                       |
+| `constraints`      | `string[]`                                    | User constraints (dietary restrictions, accessibility needs, etc.)    |
+| `destinationCoords`| `{ latitude: number; longitude: number } \| null` | Coordinates of the destination airport; populated by `validateAirport` and used for hotel `searchNearbyPlaces` calls |
+| `hotelCoords`      | `{ latitude: number; longitude: number } \| null` | Coordinates of the chosen hotel; used for restaurant, activities, nature, and selfie `searchNearbyPlaces` calls |
 
 ### Intent Types
 
@@ -570,24 +605,26 @@ export interface Trip {
 
 ```typescript
 export type Intent =
+  | "activities"
   | "arithmetic"
   | "flights"
   | "hotel"
+  | "nature"
   | "restaurant"
   | "selfie"
-  | "sightseeing"
   | "unsupported";
 ```
 
-### Selfie Types
+### Tips Types
 
-**Location:** `types/selfie/selfieSpots.ts`
+**Location:** `types/tips/tips.ts`
 
 ```typescript
-export interface SelfieSpots {
-  name: string;
-  location: string;
-  description: string;
+export interface Tips {
+  id: string;
+  transportTips: string;
+  whenToVisitTips: string;
+  safetyTips: string;
 }
 ```
 
@@ -603,15 +640,17 @@ export interface RestaurantResults {
 }
 ```
 
-### Sightseeing Types
+### Selfie Types
 
-**Location:** `types/sightseeing/sights.ts`
+**Location:** `types/selfie/selfieSpots.ts`
 
 ```typescript
-export interface Sights {
+export interface SelfieSpots {
+  id: string;
   name: string;
   location: string;
   description: string;
+  website: string;
 }
 ```
 
@@ -641,6 +680,8 @@ The application runs an Express server with the following endpoints:
   "trip": {
     "origin": null,
     "destination": null,
+    "destinationCoords": null,
+    "hotelCoords": null,
     ...
   }
 }
@@ -668,56 +709,54 @@ The application runs an Express server with the following endpoints:
 
 ## Model Support
 
-The application supports multiple LLM backends, configured in the `models/` folder.
+Model selection is driven entirely by environment variables using the `loadModel()` function. No code changes are needed to switch LLMs.
 
-### Available Models
+### loadModel Function
 
-| Model          | File               | Configuration                    |
-| -------------- | ------------------ | -------------------------------- |
-| OpenAI GPT     | `models/openAi.ts` | gpt-5-nano, temperature: 1       |
-| Google Gemini  | `models/gemini.ts` | gemini-2.5-flash, temperature: 0 |
-| Ollama (Local) | `models/ollama.ts` | qwen2.5:3b, temperature: 0       |
-
-### Switching Models
-
-To switch models, update the import statement in the agent file:
+**Location:** `utils/agents/loadModel.ts`
 
 ```typescript
-// Use OpenAI (default)
-import { model } from "../../../models/openAi.js";
+export type ModelTier = "fast" | "standard" | "smart";
 
-// Use Gemini
-import { model } from "../../../models/gemini.js";
-
-// Use Ollama (local)
-import { model } from "../../../models/ollama.js";
+export function loadModel(tier: ModelTier): BaseChatModel;
 ```
 
-### Configuration Examples
+Reads `[TIER]_MODEL_COMPANY` and `[TIER]_MODEL_NAME` from the environment and returns the appropriate LLM instance.
 
-**OpenAI:**
+### Model Tiers
 
-```typescript
-export const model = new ChatOpenAI({
-  model: "gpt-5-nano",
-  temperature: 1,
-  maxRetries: 2,
-});
-```
+| Tier       | Used by                                            | Env vars                                        |
+| ---------- | -------------------------------------------------- | ----------------------------------------------- |
+| `fast`     | `classifyIntent` (routing / classification)        | `FAST_MODEL_COMPANY`, `FAST_MODEL_NAME`         |
+| `standard` | `arithmeticNode`, `summarizeFlights`               | `STANDARD_MODEL_COMPANY`, `STANDARD_MODEL_NAME` |
+| `smart`    | All travel-planning nodes + `generator()`          | `SMART_MODEL_COMPANY`, `SMART_MODEL_NAME`       |
 
-**Gemini:**
+### Supported Providers
 
-```typescript
-export const model = new ChatGoogleGenerativeAI({
-  model: "gemini-2.5-flash",
-  temperature: 0,
-});
+| `MODEL_COMPANY` value | Provider       | Notes                              |
+| --------------------- | -------------- | ---------------------------------- |
+| `OpenAI`              | OpenAI GPT     | `temperature: 1`, `maxRetries: 2`  |
+| `GoogleGemini`        | Google Gemini  | `temperature: 0`                   |
+| `Ollama`              | Local Ollama   | `temperature: 0`                   |
+
+### Example Configuration
+
+```bash
+FAST_MODEL_COMPANY=Ollama
+FAST_MODEL_NAME=qwen2.5:3b
+STANDARD_MODEL_COMPANY=OpenAI
+STANDARD_MODEL_NAME=gpt-4o-mini
+SMART_MODEL_COMPANY=OpenAI
+SMART_MODEL_NAME=gpt-5-nano
 ```
 
 ## Project Structure
 
 ```
 multi-agent-example/
+├── data/
+│   └── airports/
+│       └── airports.json         # IATA airport lookup table
 ├── graph/
 │   ├── index.ts              # Graph definition
 │   ├── state.ts              # State annotation
@@ -734,10 +773,12 @@ multi-agent-example/
 │       │   └── hotelNode.ts
 │       ├── restaurant/
 │       │   └── restaurantNode.ts
+│       ├── activities/
+│       │   └── activityNode.ts
+│       ├── nature/
+│       │   └── natureNode.ts
 │       ├── selfie/
 │       │   └── selfieNode.ts
-│       ├── sightseeing/
-│       │   └── sightseeingNode.ts
 │       ├── tips/
 │       │   └── tipsNode.ts
 │       ├── supervisor/
@@ -756,29 +797,34 @@ multi-agent-example/
 │   │   ├── multiply.ts
 │   │   └── divide.ts
 │   └── travel/
-│       └── searchFlights.ts
+│       ├── searchFlights.ts
+│       ├── searchNearbyPlaces.ts  # Google Places API integration
+│       └── validateAirport.ts    # IATA code validation + coords lookup
 ├── types/
 │   ├── api.ts
 │   ├── intents.ts
 │   ├── trip.ts
 │   ├── arithmetic/
 │   │   └── arithmetic.ts
+│   ├── activities/
+│   │   └── activities.ts
 │   ├── flight/
 │   │   └── flights.ts
 │   ├── hotel/
 │   │   └── hotels.ts
+│   ├── nature/
+│   │   └── nature.ts
 │   ├── restaurant/
 │   │   └── restaurants.ts
 │   ├── selfie/
 │   │   └── selfieSpots.ts
-│   ├── sightseeing/
-│   │   └── sights.ts
 │   └── tips/
 │       └── tips.ts
 ├── utils/
 │   ├── agents/
 │   │   ├── extractLastToolJson.ts
-│   │   └── generator.ts
+│   │   ├── generator.ts
+│   │   └── loadModel.ts          # Dynamic model loader
 │   └── amadeus/
 │       └── tokenManager.ts
 ├── docs/
@@ -788,11 +834,21 @@ multi-agent-example/
 
 ## Environment Variables
 
-| Variable                | Description                          |
-| ----------------------- | ------------------------------------ |
-| `PORT`                  | Server port (default: 8000)          |
-| `OPENAI_API_KEY`        | OpenAI API key                       |
-| `GOOGLE_API_KEY`        | Google Gemini API key                |
-| `AMADEUS_CLIENT_ID`     | Amadeus API client ID for OAuth2     |
-| `AMADEUS_CLIENT_SECRET` | Amadeus API client secret for OAuth2 |
-| `AMADEUS_GRANT_TYPE`    | Amadeus OAuth2 grant type            |
+| Variable                | Description                                                          |
+| ----------------------- | -------------------------------------------------------------------- |
+| `PORT`                  | Server port (default: 8000)                                          |
+| `OPENAI_API_KEY`        | OpenAI API key                                                       |
+| `GOOGLE_API_KEY`        | Google Gemini API key                                                |
+| `AMADEUS_CLIENT_ID`     | Amadeus API client ID for OAuth2                                     |
+| `AMADEUS_CLIENT_SECRET` | Amadeus API client secret for OAuth2                                 |
+| `AMADEUS_GRANT_TYPE`    | Amadeus OAuth2 grant type                                            |
+| `USE_FLIGHT_API`        | `"true"` to use Amadeus API, `"false"` for LLM-generated flight data |
+| `GOOGLE_PLACES_API_KEY` | Google Places API key                                                |
+| `USE_PLACES_API`        | `"true"` to use Google Places API, `"false"` for LLM-generated data  |
+| `GENERATE_SUMMARIES`    | `"true"` to generate LLM summaries, `"false"` to skip (returns empty string) |
+| `FAST_MODEL_COMPANY`    | Model provider for the fast tier: `OpenAI`, `GoogleGemini`, or `Ollama` |
+| `FAST_MODEL_NAME`       | Model name for the fast tier (e.g. `qwen2.5:3b`)                    |
+| `STANDARD_MODEL_COMPANY`| Model provider for the standard tier                                 |
+| `STANDARD_MODEL_NAME`   | Model name for the standard tier (e.g. `gpt-4o-mini`)               |
+| `SMART_MODEL_COMPANY`   | Model provider for the smart tier                                    |
+| `SMART_MODEL_NAME`      | Model name for the smart tier (e.g. `gpt-5-nano`)                   |
