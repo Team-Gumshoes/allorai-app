@@ -9,6 +9,9 @@ import type { SelfieSpots } from "../../../types/selfie/selfieSpots.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
 import { nanoid } from "nanoid";
+import { searchNearbyPlaces } from "../../../tools/travel/searchNearbyPlaces.js";
+
+const USE_PLACES_API = process.env.USE_PLACES_API === "true";
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
@@ -33,6 +36,7 @@ function createSelfieTemplate(): SelfieSpots {
     name: null as unknown as string,
     location: null as unknown as string,
     description: null as unknown as string,
+    website: null as unknown as string,
   };
 }
 
@@ -56,14 +60,23 @@ Missing: ${missingFields.join(", ")}`),
     return { messages: [...state.messages, aiMessage] };
   }
 
-  // Generate selfie spot recommendations
   try {
-    const selfieSpots = await generator<SelfieSpots>({
-      data: Array.from({ length: 5 }, () => createSelfieTemplate()),
-      context: buildTripContext(trip),
-      description:
-        "selfie spot recommendations near the trip destination where tourists can take great selfie photos",
-    });
+    let selfieSpots: SelfieSpots[];
+
+    if (USE_PLACES_API && trip.hotelCoords) {
+      selfieSpots = (await searchNearbyPlaces({
+        type: "selfie",
+        latitude: trip.hotelCoords.latitude,
+        longitude: trip.hotelCoords.longitude,
+      })) as SelfieSpots[];
+    } else {
+      selfieSpots = await generator<SelfieSpots>({
+        data: Array.from({ length: 5 }, () => createSelfieTemplate()),
+        context: buildTripContext(trip),
+        description:
+          "selfie spot recommendations near the trip destination where tourists can take great selfie photos",
+      });
+    }
 
     // Generate a conversational summary
     const summaryResponse = await model.invoke([

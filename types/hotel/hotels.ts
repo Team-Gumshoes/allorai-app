@@ -2,6 +2,9 @@ export interface HotelResults {
   id: string;
   name: string;
   location: string;
-  num_of_stars: number;
-  price: number;
+  rating?: number;
+  latitude?: number;
+  longitude?: number;
+  description: string;
+  website: string;
 }

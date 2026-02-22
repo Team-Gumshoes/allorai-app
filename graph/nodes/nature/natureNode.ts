@@ -9,6 +9,9 @@ import type { Nature } from "../../../types/nature/nature.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
 import { nanoid } from "nanoid";
+import { searchNearbyPlaces } from "../../../tools/travel/searchNearbyPlaces.js";
+
+const USE_PLACES_API = process.env.USE_PLACES_API === "true";
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
@@ -33,6 +36,7 @@ function createNatureTemplate(): Nature {
     name: null as unknown as string,
     location: null as unknown as string,
     description: null as unknown as string,
+    website: null as unknown as string,
   };
 }
 
@@ -56,14 +60,23 @@ Missing: ${missingFields.join(", ")}`),
     return { messages: [...state.messages, aiMessage] };
   }
 
-  // Generate nature activity recommendations
   try {
-    const natureActivities = await generator<Nature>({
-      data: Array.from({ length: 5 }, () => createNatureTemplate()),
-      context: buildTripContext(trip),
-      description:
-        "nature activity recommendations near the trip destination, including hiking trails, national parks, wildlife experiences, scenic nature walks, and outdoor nature education",
-    });
+    let natureActivities: Nature[];
+
+    if (USE_PLACES_API && trip.hotelCoords) {
+      natureActivities = (await searchNearbyPlaces({
+        type: "nature",
+        latitude: trip.hotelCoords.latitude,
+        longitude: trip.hotelCoords.longitude,
+      })) as Nature[];
+    } else {
+      natureActivities = await generator<Nature>({
+        data: Array.from({ length: 5 }, () => createNatureTemplate()),
+        context: buildTripContext(trip),
+        description:
+          "nature activity recommendations near the trip destination, including hiking trails, national parks, wildlife experiences, scenic nature walks, and outdoor nature education",
+      });
+    }
 
     // Generate a conversational summary
     const summaryResponse = await model.invoke([
