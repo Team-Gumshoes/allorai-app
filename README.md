@@ -18,7 +18,8 @@ An Express server that uses LangChain's LangGraph to build AI agents with a supe
   - [Flight Agent](#flight-agent)
   - [Restaurant Agent](#restaurant-agent)
   - [Hotel Agent](#hotel-agent)
-  - [Sightseeing Agent](#sightseeing-agent)
+  - [Activities Agent](#activities-agent)
+  - [Nature Activities Agent](#nature-activities-agent)
   - [Selfie Agent](#selfie-agent)
   - [Tips Agent](#tips-agent)
 - [Generator Function](#generator-function)
@@ -38,23 +39,25 @@ An Express server that uses LangChain's LangGraph to build AI agents with a supe
 
 - **Multi-Agent Architecture**: Supervisor pattern with intent-based routing
 - **Arithmetic Agent**: Basic math operations (+, -, \*, /) between two numbers
-- **Flight Agent**: Search for round-trip flights using the Amadeus API
-- **Restaurant Agent**: LLM-generated restaurant recommendations using the generator function
-- **Hotel Agent**: LLM-generated hotel recommendations using the generator function
-- **Sightseeing Agent**: LLM-generated sightseeing and attraction recommendations using the generator function
-- **Selfie Agent**: LLM-generated selfie spot recommendations using the generator function
+- **Flight Agent**: Search for round-trip flights using the Amadeus API (or LLM-generated fallback)
+- **Restaurant Agent**: Restaurant recommendations via Google Places API or LLM generator fallback
+- **Hotel Agent**: Hotel recommendations via Google Places API or LLM generator fallback
+- **Activities Agent**: Tourist attraction and activity recommendations via Google Places API or LLM generator fallback
+- **Nature Activities Agent**: Nature spot recommendations (parks, trails, national parks) via Google Places API or LLM generator fallback
+- **Selfie Agent**: Selfie spot recommendations via Google Places API or LLM generator fallback
 - **Tips Agent**: LLM-generated travel tips (transport, when to visit, safety) via a dedicated `/tips` endpoint
 - **Generator Function**: Generic utility that fills null values in JSON data using LLM context
-- **Multiple LLM Support**: OpenAI, Google Gemini, or local Ollama models
+- **Google Places API**: Real venue data for hotel, restaurant, activities, nature, and selfie agents with LLM fallback
+- **Dynamic Model Loading**: `loadModel()` selects the LLM per task tier (fast/standard/smart) based on environment variables — no code changes needed to switch models
 - **Extensible**: Easy to add new agents with custom tools or LLM-generated data
 
 ## Architecture
 
 ```
-START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant Agent | Selfie Agent | Sightseeing Agent | Unsupported] -> END
+START -> Router -> [Arithmetic Agent | Flight Agent | Hotel Agent | Restaurant Agent | Activities Agent | Nature Agent | Selfie Agent | Unsupported] -> END
 ```
 
-The router classifies user intent and directs the request to the appropriate agent. Each agent has access to domain-specific tools and can engage in multi-turn conversations to gather required information. Agents without tools can use the generator function to produce LLM-generated data instead.
+The router classifies user intent and directs the request to the appropriate agent. Each agent has access to domain-specific tools and can engage in multi-turn conversations to gather required information. Agents without tools can use the Google Places API or the generator function to produce data.
 
 ## Installation
 
@@ -68,14 +71,24 @@ pnpm install
 
 Create a `.env` file based on `.env.example`:
 
-| Variable                | Description                          |
-| ----------------------- | ------------------------------------ |
-| `PORT`                  | Server port (default: 8000)          |
-| `OPENAI_API_KEY`        | OpenAI API key                       |
-| `GOOGLE_API_KEY`        | Google Gemini API key                |
-| `AMADEUS_CLIENT_ID`     | Amadeus API client ID for OAuth2     |
-| `AMADEUS_CLIENT_SECRET` | Amadeus API client secret for OAuth2 |
-| `AMADEUS_GRANT_TYPE`    | Amadeus OAuth2 grant type            |
+| Variable                | Description                                                          |
+| ----------------------- | -------------------------------------------------------------------- |
+| `PORT`                  | Server port (default: 8000)                                          |
+| `OPENAI_API_KEY`        | OpenAI API key                                                       |
+| `GOOGLE_API_KEY`        | Google Gemini API key                                                |
+| `AMADEUS_CLIENT_ID`     | Amadeus API client ID for OAuth2                                     |
+| `AMADEUS_CLIENT_SECRET` | Amadeus API client secret for OAuth2                                 |
+| `AMADEUS_GRANT_TYPE`    | Amadeus OAuth2 grant type                                            |
+| `USE_FLIGHT_API`        | `"true"` to use Amadeus API, `"false"` for LLM-generated flight data |
+| `GOOGLE_PLACES_API_KEY` | Google Places API key                                                |
+| `USE_PLACES_API`        | `"true"` to use Google Places API, `"false"` for LLM-generated data  |
+| `GENERATE_SUMMARIES`    | `"true"` to generate LLM summaries, `"false"` to skip (returns empty string) |
+| `FAST_MODEL_COMPANY`    | Model provider for the fast tier: `OpenAI`, `GoogleGemini`, or `Ollama` |
+| `FAST_MODEL_NAME`       | Model name for the fast tier (e.g. `qwen2.5:3b`)                    |
+| `STANDARD_MODEL_COMPANY`| Model provider for the standard tier                                 |
+| `STANDARD_MODEL_NAME`   | Model name for the standard tier (e.g. `gpt-4o-mini`)               |
+| `SMART_MODEL_COMPANY`   | Model provider for the smart tier                                    |
+| `SMART_MODEL_NAME`      | Model name for the smart tier (e.g. `gpt-5-nano`)                   |
 
 ## Running the Server
 
@@ -109,7 +122,9 @@ Send messages to the agent and receive responses.
     "destination": null,
     "departureDate": null,
     "returnDate": null,
-    "budget": null
+    "budget": null,
+    "destinationCoords": null,
+    "hotelCoords": null
   }
 }
 ```
@@ -187,21 +202,21 @@ Handles basic math operations (+, -, \*, /) between exactly two numbers using `c
 
 Searches for round-trip flights using the Amadeus API. Uses `createReactAgent` with the `searchFlights` tool. Builds a dynamic system prompt with current trip context and asks for missing required fields (origin, destination, dates). After fetching results, it summarizes the flights with a separate LLM call.
 
+When `USE_FLIGHT_API=false`, the agent falls back to LLM-generated flight data via the generator function.
+
 ### Restaurant Agent
 
 **Location:** `graph/nodes/restaurant/`
 
-Generates restaurant recommendations using the generator function instead of external API tools. This agent demonstrates the pattern for agents that don't have a third-party API integration.
+Generates restaurant recommendations using the Google Places API when coordinates are available, with the generator function as a fallback.
 
 **How it works:**
 
 1. Checks if the Trip has a `destination`. If missing, it asks the user for one using a direct `model.invoke()` call.
-2. Once a destination is available, it creates a template array of 3 `RestaurantResults` objects with all fields set to `null`.
-3. Passes the templates and Trip context to the `generator()` function, which fills in the null values with contextually appropriate restaurant data.
-4. Generates a conversational summary of the recommendations via a second LLM call.
+2. If `USE_PLACES_API=true` and `trip.hotelCoords` is set, fetches real restaurant data from Google Places API via `searchNearbyPlaces`.
+3. Otherwise, creates a template array of `RestaurantResults` objects with all fields set to `null` and passes them to `generator()`.
+4. Generates a conversational summary of the recommendations via a second LLM call (if `GENERATE_SUMMARIES=true`).
 5. Returns both the summary message and the structured `RestaurantResponseData`.
-
-**Key difference from tool-based agents:** The restaurant agent does not use `createReactAgent` (which requires tools). Instead, it calls `model.invoke()` directly for conversation and the `generator()` utility for data generation.
 
 **Example request:**
 
@@ -218,7 +233,9 @@ Generates restaurant recommendations using the generator function instead of ext
     "budget": 3000,
     "hotel": "Park Hyatt Tokyo",
     "interests": ["sushi", "ramen"],
-    "constraints": []
+    "constraints": [],
+    "destinationCoords": { "latitude": 35.6762, "longitude": 139.6503 },
+    "hotelCoords": { "latitude": 35.6892, "longitude": 139.6922 }
   }
 }
 ```
@@ -227,14 +244,14 @@ Generates restaurant recommendations using the generator function instead of ext
 
 **Location:** `graph/nodes/hotel/`
 
-Generates hotel recommendations using the generator function. Follows the same generator-based pattern as the restaurant agent.
+Generates hotel recommendations using the Google Places API when destination coordinates are available, with the generator function as a fallback.
 
 **How it works:**
 
 1. Checks if the Trip has a `destination`. If missing, it asks the user for one using a direct `model.invoke()` call.
-2. Once a destination is available, it creates a template array of 5 `HotelResults` objects with all fields set to `null`.
-3. Passes the templates and Trip context to the `generator()` function, which fills in the null values with contextually appropriate hotel data.
-4. Generates a conversational summary of the recommendations via a second LLM call.
+2. If `USE_PLACES_API=true` and `trip.destinationCoords` is set, fetches real hotel data from Google Places API via `searchNearbyPlaces`.
+3. Otherwise, creates a template array of 5 `HotelResults` objects with all fields set to `null` and passes them to `generator()`.
+4. Generates a conversational summary of the recommendations via a second LLM call (if `GENERATE_SUMMARIES=true`).
 5. Returns both the summary message and the structured `HotelResponseData`.
 
 **Example request:**
@@ -252,41 +269,81 @@ Generates hotel recommendations using the generator function. Follows the same g
     "budget": 3000,
     "hotel": null,
     "interests": ["sightseeing"],
-    "constraints": []
+    "constraints": [],
+    "destinationCoords": { "latitude": 35.6762, "longitude": 139.6503 },
+    "hotelCoords": null
   }
 }
 ```
 
-### Sightseeing Agent
+### Activities Agent
 
-**Location:** `graph/nodes/sightseeing/`
+**Location:** `graph/nodes/activities/`
 
-Generates sightseeing and attraction recommendations using the generator function. Follows the same generator-based pattern as the hotel and restaurant agents.
+Generates tourist attraction and activity recommendations using the Google Places API when hotel coordinates are available, with the generator function as a fallback.
 
 **How it works:**
 
 1. Checks if the Trip has a `destination`. If missing, it asks the user for one using a direct `model.invoke()` call.
-2. Once a destination is available, it creates a template array of 5 `Sights` objects with all fields set to `null`.
-3. Passes the templates and Trip context to the `generator()` function, which fills in the null values with contextually appropriate sightseeing data.
-4. Generates a conversational summary of the recommendations via a second LLM call.
-5. Returns both the summary message and the structured `SightseeingResponseData`.
+2. If `USE_PLACES_API=true` and `trip.hotelCoords` is set, fetches real activity data from Google Places API via `searchNearbyPlaces` (searches for tourist attractions, museums, amusement parks, art galleries, and zoos).
+3. Otherwise, creates a template array of 10 `Activities` objects with all fields set to `null` and passes them to `generator()`.
+4. Generates a conversational summary of the recommendations via a second LLM call (if `GENERATE_SUMMARIES=true`).
+5. Returns both the summary message and the structured `ActivitiesResponseData`.
 
 **Example request:**
 
 ```json
 {
-  "messages": [{ "type": "human", "content": "What should I see in Paris?" }],
+  "messages": [{ "type": "human", "content": "What activities can I do in Tokyo?" }],
   "trip": {
     "origin": "New York",
-    "destination": "Paris",
+    "destination": "Tokyo",
     "departureFlight": null,
     "returnFlight": null,
     "departureDate": "2026-03-01",
     "returnDate": "2026-03-07",
     "budget": 4000,
-    "hotel": "Le Marais Hotel",
-    "interests": ["history", "art"],
-    "constraints": []
+    "hotel": "Park Hyatt Tokyo",
+    "interests": ["culture", "history"],
+    "constraints": [],
+    "destinationCoords": { "latitude": 35.6762, "longitude": 139.6503 },
+    "hotelCoords": { "latitude": 35.6892, "longitude": 139.6922 }
+  }
+}
+```
+
+### Nature Activities Agent
+
+**Location:** `graph/nodes/nature/`
+
+Generates nature spot recommendations (parks, national parks, hiking areas, campgrounds) using the Google Places API when hotel coordinates are available, with the generator function as a fallback.
+
+**How it works:**
+
+1. Checks if the Trip has a `destination`. If missing, it asks the user for one using a direct `model.invoke()` call.
+2. If `USE_PLACES_API=true` and `trip.hotelCoords` is set, fetches real nature spot data from Google Places API via `searchNearbyPlaces` (searches for parks, national parks, campgrounds, and hiking areas).
+3. Otherwise, creates a template array of 5 `Nature` objects with all fields set to `null` and passes them to `generator()`.
+4. Generates a conversational summary of the recommendations via a second LLM call (if `GENERATE_SUMMARIES=true`).
+5. Returns both the summary message and the structured `NatureResponseData`.
+
+**Example request:**
+
+```json
+{
+  "messages": [{ "type": "human", "content": "Where can I enjoy nature near Tokyo?" }],
+  "trip": {
+    "origin": "New York",
+    "destination": "Tokyo",
+    "departureFlight": null,
+    "returnFlight": null,
+    "departureDate": "2026-03-01",
+    "returnDate": "2026-03-07",
+    "budget": 4000,
+    "hotel": "Park Hyatt Tokyo",
+    "interests": ["hiking", "nature"],
+    "constraints": [],
+    "destinationCoords": { "latitude": 35.6762, "longitude": 139.6503 },
+    "hotelCoords": { "latitude": 35.6892, "longitude": 139.6922 }
   }
 }
 ```
@@ -295,14 +352,14 @@ Generates sightseeing and attraction recommendations using the generator functio
 
 **Location:** `graph/nodes/selfie/`
 
-Generates selfie spot recommendations using the generator function. Follows the same generator-based pattern as the hotel, restaurant, and sightseeing agents.
+Generates selfie spot recommendations using the Google Places API when hotel coordinates are available, with the generator function as a fallback.
 
 **How it works:**
 
 1. Checks if the Trip has a `destination`. If missing, it asks the user for one using a direct `model.invoke()` call.
-2. Once a destination is available, it creates a template array of 5 `SelfieSpots` objects with all fields set to `null`.
-3. Passes the templates and Trip context to the `generator()` function, which fills in the null values with contextually appropriate selfie spot data.
-4. Generates a conversational summary of the recommendations via a second LLM call.
+2. If `USE_PLACES_API=true` and `trip.hotelCoords` is set, fetches real location data from Google Places API via `searchNearbyPlaces` (searches for tourist attractions, museums, art galleries, and zoos).
+3. Otherwise, creates a template array of 5 `SelfieSpots` objects with all fields set to `null` and passes them to `generator()`.
+4. Generates a conversational summary of the recommendations via a second LLM call (if `GENERATE_SUMMARIES=true`).
 5. Returns both the summary message and the structured `SelfieResponseData`.
 
 **Example request:**
@@ -322,7 +379,9 @@ Generates selfie spot recommendations using the generator function. Follows the 
     "budget": 4000,
     "hotel": "Park Hyatt Tokyo",
     "interests": ["photography", "culture"],
-    "constraints": []
+    "constraints": [],
+    "destinationCoords": { "latitude": 35.6762, "longitude": 139.6503 },
+    "hotelCoords": { "latitude": 35.6892, "longitude": 139.6922 }
   }
 }
 ```
@@ -355,7 +414,7 @@ Generates travel tips using the generator function. Unlike other agents, the tip
 The generator is a generic utility that calls an LLM to fill `null` values in JSON data with contextually appropriate values. It serves two purposes:
 
 1. **Supplementing API data**: When an agent fetches data from a third-party API but some fields are missing (e.g., flight prices returned as null), the generator fills in realistic estimates.
-2. **Placeholder data**: When an agent has no API integration yet, the generator produces all the data based on context (e.g., the restaurant agent).
+2. **Placeholder data**: When an agent has no API integration or coordinates are unavailable, the generator produces all the data based on context (e.g., when `USE_PLACES_API=false`).
 
 ### Usage
 
@@ -391,21 +450,23 @@ The generator accepts a `GeneratorOptions<T>` object:
 
 ### Examples
 
-**Restaurant agent (all fields null):**
+**Activities agent (all fields null, Places API disabled):**
 
 ```typescript
-const template: RestaurantResults = {
+const template: Activities = {
+  id: nanoid(),
   name: null as unknown as string,
   location: null as unknown as string,
-  cuisine: null as unknown as string,
+  description: null as unknown as string,
+  website: null as unknown as string,
 };
 
-const restaurants = await generator<RestaurantResults>({
-  data: [template, template, template],
-  context: { destination: "Tokyo", budget: 3000, interests: ["sushi"] },
-  description: "restaurant recommendations near the trip destination",
+const activities = await generator<Activities>({
+  data: Array.from({ length: 10 }, () => template),
+  context: { destination: "Tokyo", budget: 4000, interests: ["culture"] },
+  description: "activity recommendations near the trip destination",
 });
-// Returns 3 RestaurantResults with name, location, cuisine filled in
+// Returns 10 Activities with all fields filled in
 ```
 
 **Flight agent (partial null fields):**
@@ -437,17 +498,42 @@ const hotel = await generator<HotelResults>({
 
 ## Supported Models
 
-The application supports multiple LLM backends. To switch models, update the import in agent files:
+Model selection is driven entirely by environment variables -- no code changes are needed to switch LLMs.
 
-```typescript
-// OpenAI (default)
-import { model } from "../../../models/openAi.js";
+### Model Tiers
 
-// Google Gemini
-import { model } from "../../../models/gemini.js";
+The `loadModel()` function (`utils/agents/loadModel.ts`) dynamically instantiates an LLM based on the tier requested:
 
-// Ollama (local)
-import { model } from "../../../models/ollama.js";
+| Tier       | Used by                                            | Env vars                                          |
+| ---------- | -------------------------------------------------- | ------------------------------------------------- |
+| `fast`     | `classifyIntent` (routing / classification)        | `FAST_MODEL_COMPANY`, `FAST_MODEL_NAME`           |
+| `standard` | `arithmeticNode`, `summarizeFlights`               | `STANDARD_MODEL_COMPANY`, `STANDARD_MODEL_NAME`   |
+| `smart`    | All travel-planning nodes + `generator()`          | `SMART_MODEL_COMPANY`, `SMART_MODEL_NAME`         |
+
+### Supported Providers
+
+Set `[TIER]_MODEL_COMPANY` to one of the following values:
+
+| Value           | Provider        |
+| --------------- | --------------- |
+| `OpenAI`        | OpenAI GPT      |
+| `GoogleGemini`  | Google Gemini   |
+| `Ollama`        | Local Ollama    |
+
+### Example Configuration
+
+```bash
+# Fast tier: local Ollama model for quick classification
+FAST_MODEL_COMPANY=Ollama
+FAST_MODEL_NAME=qwen2.5:3b
+
+# Standard tier: OpenAI for moderate reasoning tasks
+STANDARD_MODEL_COMPANY=OpenAI
+STANDARD_MODEL_NAME=gpt-4o-mini
+
+# Smart tier: OpenAI for full generation tasks
+SMART_MODEL_COMPANY=OpenAI
+SMART_MODEL_NAME=gpt-5-nano
 ```
 
 ## Extensibility Guide
@@ -466,8 +552,9 @@ export type Intent =
   | "flights"
   | "hotel"
   | "restaurant"
+  | "activities"
+  | "nature"
   | "selfie"
-  | "sightseeing"
   | "unsupported";
 ```
 
@@ -497,11 +584,13 @@ Create a new folder `graph/nodes/hotel/` with:
 ```typescript
 import { createReactAgent } from "@langchain/langgraph/prebuilt";
 import { SystemMessage } from "@langchain/core/messages";
-import { model } from "../../../models/openAi.js";
+import { loadModel } from "../../../utils/agents/loadModel.js";
 import { hotelTools } from "./tools.js";
 import type { AgentStateType } from "../../state.js";
 
 const systemPrompt = `You are a helpful hotel booking assistant...`;
+
+const model = loadModel("smart");
 
 const hotelAgent = createReactAgent({
   llm: model,
@@ -574,12 +663,12 @@ import { hotelNode } from "./nodes/hotel/hotelNode.js";
 
 ### Adding a New Agent without Tools
 
-For agents that don't have an external API, use the generator function instead of `createReactAgent`. The restaurant agent (`graph/nodes/restaurant/restaurantNode.ts`) and hotel agent (`graph/nodes/hotel/hotelNode.ts`) are reference implementations for this pattern.
+For agents that don't have an external API, use the generator function instead of `createReactAgent`. The activities agent (`graph/nodes/activities/activityNode.ts`) is a reference implementation for this pattern with Places API + generator fallback.
 
 #### Key differences from tool-based agents:
 
 1. **No `createReactAgent`** -- `createReactAgent` requires a non-empty tools array. Instead, use `model.invoke()` directly for conversational LLM calls.
-2. **Use the generator for data** -- Create a template of your result type with null fields and pass it to `generator()` with relevant context.
+2. **Use Places API or generator for data** -- Check `USE_PLACES_API` and coordinates; if available, call `searchNearbyPlaces()`. Otherwise create a template of your result type with null fields and pass it to `generator()`.
 3. **Check for required context** -- Validate that necessary Trip fields (e.g., `destination`) exist before generating. If missing, return an AIMessage asking the user.
 
 #### Agent Node Template (no tools):
@@ -590,10 +679,15 @@ import {
   HumanMessage,
   AIMessage,
 } from "@langchain/core/messages";
-import { model } from "../../../models/openAi.js";
+import { loadModel } from "../../../utils/agents/loadModel.js";
 import { generator } from "../../../utils/agents/generator.js";
+import { searchNearbyPlaces } from "../../../tools/travel/searchNearbyPlaces.js";
 import type { MyResultType } from "../../../types/myDomain/myType.js";
 import type { AgentStateType } from "../../state.js";
+
+const USE_PLACES_API = process.env.USE_PLACES_API === "true";
+const GENERATE_SUMMARIES = process.env.GENERATE_SUMMARIES === "true";
+const model = loadModel("smart");
 
 export async function myNode(
   state: AgentStateType,
@@ -611,21 +705,38 @@ export async function myNode(
     };
   }
 
-  // Create templates with null fields for the generator to fill
-  const template: MyResultType = {
-    field1: null as unknown as string,
-    field2: null as unknown as string,
-  };
+  let results: MyResultType[];
 
-  const results = await generator<MyResultType>({
-    data: [template, template, template],
-    context: { destination: trip.destination, budget: trip.budget },
-    description: "description of what to generate",
-  });
+  if (USE_PLACES_API && trip.hotelCoords) {
+    results = (await searchNearbyPlaces({
+      type: "activities",
+      latitude: trip.hotelCoords.latitude,
+      longitude: trip.hotelCoords.longitude,
+    })) as MyResultType[];
+  } else {
+    const template: MyResultType = {
+      field1: null as unknown as string,
+      field2: null as unknown as string,
+    };
+    results = await generator<MyResultType>({
+      data: [template, template, template],
+      context: { destination: trip.destination, budget: trip.budget },
+      description: "description of what to generate",
+    });
+  }
+
+  let summary = "";
+  if (GENERATE_SUMMARIES) {
+    const summaryResponse = await model.invoke([
+      new SystemMessage("Briefly summarize these recommendations."),
+      new HumanMessage(JSON.stringify(results, null, 2)),
+    ]);
+    summary = summaryResponse.content as string;
+  }
 
   return {
-    messages: [...state.messages, new AIMessage("Here are your results...")],
-    data: { type: "myDomain", options: results },
+    messages: [...state.messages, new AIMessage(summary || "Here are your results...")],
+    data: { type: "myDomain", summary, options: results },
   };
 }
 ```
@@ -634,26 +745,36 @@ export async function myNode(
 
 ```
 multi-agent-example/
+├── data/
+│   └── airports/
+│       └── airports.json         # IATA airport lookup table
 ├── graph/
 │   ├── index.ts              # Graph definition
 │   ├── state.ts              # State annotation
 │   └── nodes/
 │       ├── arithmetic/       # Arithmetic agent (tool-based)
 │       ├── flight/           # Flight agent (tool-based)
-│       ├── hotel/            # Hotel agent (generator-based)
-│       ├── restaurant/       # Restaurant agent (generator-based)
-│       ├── selfie/           # Selfie agent (generator-based)
-│       ├── sightseeing/      # Sightseeing agent (generator-based)
+│       ├── hotel/            # Hotel agent (Places API + generator)
+│       ├── restaurant/       # Restaurant agent (Places API + generator)
+│       ├── activities/       # Activities agent (Places API + generator)
+│       ├── nature/           # Nature agent (Places API + generator)
+│       ├── selfie/           # Selfie agent (Places API + generator)
 │       ├── tips/             # Tips agent (generator-based, standalone route)
 │       ├── supervisor/       # Router and intent classification
 │       └── unsupportedNode.ts
 ├── models/                   # LLM configurations
 ├── tools/                    # Tool implementations
+│   ├── arithmetic/
+│   └── travel/
+│       ├── searchFlights.ts
+│       ├── searchNearbyPlaces.ts  # Google Places API integration
+│       └── validateAirport.ts    # IATA code validation + coords lookup
 ├── types/                    # TypeScript types
 ├── utils/
 │   └── agents/
 │       ├── extractLastToolJson.ts  # Extract JSON from tool messages
-│       └── generator.ts            # Generic LLM data generator
+│       ├── generator.ts            # Generic LLM data generator
+│       └── loadModel.ts            # Dynamic model loader
 ├── docs/
 │   └── APP-CONTEXT.md        # Technical documentation
 └── index.ts                  # Express server
