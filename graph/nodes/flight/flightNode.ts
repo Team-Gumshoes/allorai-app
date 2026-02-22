@@ -15,6 +15,7 @@ import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
 
 const useFlightApi = process.env.USE_FLIGHT_API === "false";
+const GENERATE_SUMMARIES = process.env.GENERATE_SUMMARIES === "true";
 
 const model = loadModel("smart");
 
@@ -161,15 +162,19 @@ async function flightNodeWithApi(
     }
 
     // Summarize the flights - non-fatal if LLM call fails
-    let summary: string;
-    try {
-      summary = await summarizeFlights(flightData, result.messages);
-    } catch (summarizeError) {
-      console.error("[flightNode] Summarization failed:", summarizeError);
-      summary = "Here are the flight options I found.";
+    let summary = "";
+    if (GENERATE_SUMMARIES) {
+      try {
+        summary = await summarizeFlights(flightData, result.messages);
+      } catch (summarizeError) {
+        console.error("[flightNode] Summarization failed:", summarizeError);
+        summary = "Here are the flight options I found.";
+      }
     }
 
-    const finalMessage = new AIMessage(summary);
+    const finalMessage = new AIMessage(
+      summary || "Here are the flight options I found.",
+    );
 
     // Return updated state with data extracted
     return {
@@ -221,8 +226,10 @@ Missing: ${missingFields.join(", ")}`),
         "round-trip flight options. Each flight must have exactly 2 legs: one outbound (origin to destination) and one return (destination to origin). Each leg needs a direction ('outbound' or 'return'), legDuration, and a segments array. Each segment needs duration, departure (airport IATA code + ISO time), arrival (airport IATA code + ISO time), and airline name. Prices should be realistic USD values.",
     });
 
-    const summary = await summarizeFlights(flights, state.messages);
-    const aiMessage = new AIMessage(summary);
+    const summary = GENERATE_SUMMARIES
+      ? await summarizeFlights(flights, state.messages)
+      : "";
+    const aiMessage = new AIMessage(summary || "Here are your flight options.");
 
     return {
       messages: [...state.messages, aiMessage],

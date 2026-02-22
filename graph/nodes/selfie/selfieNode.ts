@@ -12,6 +12,7 @@ import { nanoid } from "nanoid";
 import { searchNearbyPlaces } from "../../../tools/travel/searchNearbyPlaces.js";
 
 const USE_PLACES_API = process.env.USE_PLACES_API === "true";
+const GENERATE_SUMMARIES = process.env.GENERATE_SUMMARIES === "true";
 
 const model = loadModel("smart");
 
@@ -80,16 +81,20 @@ Missing: ${missingFields.join(", ")}`),
       });
     }
 
-    // Generate a conversational summary
-    const summaryResponse = await model.invoke([
-      new SystemMessage(`You are a helpful selfie spot assistant.
+    let summary = "";
+    let aiMessage: AIMessage;
+    if (GENERATE_SUMMARIES) {
+      const summaryResponse = await model.invoke([
+        new SystemMessage(`You are a helpful selfie spot assistant.
 Briefly summarize these selfie spot recommendations in 2-3 sentences.
 Be concise and helpful.`),
-      new HumanMessage(JSON.stringify(selfieSpots, null, 2)),
-    ]);
-
-    const summary = summaryResponse.content as string;
-    const aiMessage = new AIMessage(summary);
+        new HumanMessage(JSON.stringify(selfieSpots, null, 2)),
+      ]);
+      summary = summaryResponse.content as string;
+      aiMessage = new AIMessage(summary);
+    } else {
+      aiMessage = new AIMessage("Here are your selfie spot recommendations.");
+    }
 
     return {
       messages: [...state.messages, aiMessage],
