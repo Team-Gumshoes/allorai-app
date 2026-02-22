@@ -9,6 +9,9 @@ import type { Activities } from "../../../types/activities/activities.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
 import { nanoid } from "nanoid";
+import { searchNearbyPlaces } from "../../../tools/travel/searchNearbyPlaces.js";
+
+const USE_PLACES_API = process.env.USE_PLACES_API === "true";
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
@@ -33,6 +36,7 @@ function createActivitiesTemplate(): Activities {
     name: null as unknown as string,
     location: null as unknown as string,
     description: null as unknown as string,
+    website: null as unknown as string,
   };
 }
 
@@ -56,14 +60,22 @@ Missing: ${missingFields.join(", ")}`),
     return { messages: [...state.messages, aiMessage] };
   }
 
-  // Generate activity recommendations
   try {
-    const activities = await generator<Activities>({
-      data: Array.from({ length: 5 }, () => createActivitiesTemplate()),
-      context: buildTripContext(trip),
-      description:
-        "activity recommendations near the trip destination",
-    });
+    let activities: Activities[];
+
+    if (USE_PLACES_API && trip.hotelCoords) {
+      activities = (await searchNearbyPlaces({
+        type: "activities",
+        latitude: trip.hotelCoords.latitude,
+        longitude: trip.hotelCoords.longitude,
+      })) as Activities[];
+    } else {
+      activities = await generator<Activities>({
+        data: Array.from({ length: 10 }, () => createActivitiesTemplate()),
+        context: buildTripContext(trip),
+        description: "activity recommendations near the trip destination",
+      });
+    }
 
     // Generate a conversational summary
     const summaryResponse = await model.invoke([

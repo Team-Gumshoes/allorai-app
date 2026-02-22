@@ -9,6 +9,9 @@ import type { RestaurantResults } from "../../../types/restaurant/restaurants.js
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
 import { nanoid } from "nanoid";
+import { searchNearbyPlaces } from "../../../tools/travel/searchNearbyPlaces.js";
+
+const USE_PLACES_API = process.env.USE_PLACES_API === "true";
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
@@ -32,7 +35,8 @@ function createRestaurantTemplate(): RestaurantResults {
     id: nanoid(),
     name: null as unknown as string,
     location: null as unknown as string,
-    cuisine: null as unknown as string,
+    description: null as unknown as string,
+    website: null as unknown as string,
   };
 }
 
@@ -56,13 +60,22 @@ Missing: ${missingFields.join(", ")}`),
     return { messages: [...state.messages, aiMessage] };
   }
 
-  // Generate restaurant recommendations
   try {
-    const restaurants = await generator<RestaurantResults>({
-      data: Array.from({ length: 3 }, () => createRestaurantTemplate()),
-      context: buildTripContext(trip),
-      description: "restaurant recommendations near the trip destination",
-    });
+    let restaurants: RestaurantResults[];
+
+    if (USE_PLACES_API && trip.hotelCoords) {
+      restaurants = (await searchNearbyPlaces({
+        type: "restaurant",
+        latitude: trip.hotelCoords.latitude,
+        longitude: trip.hotelCoords.longitude,
+      })) as RestaurantResults[];
+    } else {
+      restaurants = await generator<RestaurantResults>({
+        data: Array.from({ length: 3 }, () => createRestaurantTemplate()),
+        context: buildTripContext(trip),
+        description: "restaurant recommendations near the trip destination",
+      });
+    }
 
     // Generate a conversational summary
     const summaryResponse = await model.invoke([

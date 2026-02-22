@@ -9,6 +9,10 @@ import type { HotelResults } from "../../../types/hotel/hotels.js";
 import type { AgentStateType } from "../../state.js";
 import type { Trip } from "../../../types/trip.js";
 import { nanoid } from "nanoid";
+import { searchNearbyPlaces } from "../../../tools/travel/searchNearbyPlaces.js";
+import { validateAirportCode } from "../../../tools/travel/validateAirport.js";
+
+const USE_PLACES_API = process.env.USE_PLACES_API === "true";
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
@@ -32,9 +36,28 @@ function createHotelTemplate(): HotelResults {
     id: nanoid(),
     name: null as unknown as string,
     location: null as unknown as string,
-    num_of_stars: null as unknown as number,
-    price: null as unknown as number,
+    rating: null as unknown as number,
+    latitude: null as unknown as number,
+    longitude: null as unknown as number,
+    description: null as unknown as string,
+    website: null as unknown as string,
   };
+}
+
+async function getDestinationCoords(
+  trip: Trip,
+): Promise<{ latitude: number; longitude: number } | null> {
+  if (trip.destinationCoords) return trip.destinationCoords;
+  if (!trip.destination) return null;
+  try {
+    const airport = await validateAirportCode(trip.destination);
+    return {
+      latitude: airport.latitude_deg,
+      longitude: airport.longitude_deg,
+    };
+  } catch {
+    return null;
+  }
 }
 
 export async function hotelNode(
@@ -57,14 +80,33 @@ Missing: ${missingFields.join(", ")}`),
     return { messages: [...state.messages, aiMessage] };
   }
 
-  // Generate hotel recommendations
   try {
-    const hotels = await generator<HotelResults>({
-      // data: [template, template, template, template, template],
-      data: Array.from({ length: 5 }, () => createHotelTemplate()),
-      context: buildTripContext(trip),
-      description: "hotel recommendations near the trip destination",
-    });
+    let hotels: HotelResults[];
+
+    if (USE_PLACES_API) {
+      const coords = await getDestinationCoords(trip);
+
+      if (!coords) {
+        // No coordinates available, fall back to generator
+        hotels = await generator<HotelResults>({
+          data: Array.from({ length: 10 }, () => createHotelTemplate()),
+          context: buildTripContext(trip),
+          description: "hotel recommendations near the trip destination",
+        });
+      } else {
+        hotels = (await searchNearbyPlaces({
+          type: "hotel",
+          latitude: coords.latitude,
+          longitude: coords.longitude,
+        })) as HotelResults[];
+      }
+    } else {
+      hotels = await generator<HotelResults>({
+        data: Array.from({ length: 5 }, () => createHotelTemplate()),
+        context: buildTripContext(trip),
+        description: "hotel recommendations near the trip destination",
+      });
+    }
 
     // Generate a conversational summary
     const summaryResponse = await model.invoke([
