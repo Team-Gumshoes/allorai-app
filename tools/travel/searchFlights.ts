@@ -47,6 +47,7 @@ export const searchFlights = tool(
     url.searchParams.set("max", String(5)); // Set a default of 5 results
     url.searchParams.set("currencyCode", "USD");
     url.searchParams.set("adults", String(1));
+    url.searchParams.set("excludedAirlineCodes", "6X"); // Removes the fake Amadeus Airline (AMADEUS SIX - 6X) that they include in the data
 
     // Only include airline codes if provided
     if (includedAirlinesCodes && includedAirlinesCodes.length > 0) {
