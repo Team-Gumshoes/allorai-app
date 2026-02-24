@@ -4,4 +4,5 @@ export interface RestaurantResults {
   location: string;
   description: string;
   website: string;
+  imageUrl: string;
 }

@@ -4,4 +4,5 @@ export interface SelfieSpots {
   location: string;
   description: string;
   website: string;
+  imageUrl: string;
 }
