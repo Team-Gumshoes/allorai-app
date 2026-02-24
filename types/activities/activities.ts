@@ -4,4 +4,5 @@ export interface Activities {
   location: string;
   description: string;
   website: string;
+  imageUrl: string;
 }

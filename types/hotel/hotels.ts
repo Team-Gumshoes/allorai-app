@@ -7,4 +7,5 @@ export interface HotelResults {
   longitude?: number;
   description: string;
   website: string;
+  imageUrl: string;
 }
