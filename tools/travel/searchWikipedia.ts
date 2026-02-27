@@ -109,6 +109,35 @@ export async function fetchWikipediaSectionContent(
 }
 
 /**
+ * Fetches the geographic coordinates of a Wikipedia page.
+ * Returns { latitude, longitude } or null if unavailable or the request fails.
+ */
+export async function fetchWikipediaCoordinates(
+  pageId: number,
+): Promise<{ latitude: number; longitude: number } | null> {
+  const url = `${WIKI_API}?action=query&prop=coordinates&pageids=${pageId}&format=json&origin=*`;
+
+  try {
+    const response = await fetch(url);
+
+    if (!response.ok) return null;
+
+    const data = await response.json();
+    const pages = data?.query?.pages as
+      | Record<string, { coordinates?: Array<{ lat: number; lon: number }> }>
+      | undefined;
+
+    const coords = pages?.[String(pageId)]?.coordinates?.[0];
+
+    if (!coords) return null;
+
+    return { latitude: coords.lat, longitude: coords.lon };
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Fetches the full plain-text extract of a Wikipedia article.
  * Used as a category fallback when section content buckets are empty.
  * Returns null on failure.
