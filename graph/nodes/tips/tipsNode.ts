@@ -70,7 +70,6 @@ export async function generateTips(trip: Trip): Promise<Tips[]> {
 
     // Step 3: LLM classifies which sections are relevant
     const classified = await classifySections(sections, trip.city);
-    console.log(classified);
 
     // Step 4: Fetch all relevant section content in parallel (HTML already stripped)
     const sectionContents = await Promise.all(

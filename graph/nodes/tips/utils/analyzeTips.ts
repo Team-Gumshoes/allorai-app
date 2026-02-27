@@ -5,7 +5,7 @@ import type { GroupedContent } from "../../../../tools/travel/searchWikipedia.js
 import { loadModel } from "../../../../utils/agents/loadModel.js";
 import { nanoid } from "nanoid";
 
-const model = loadModel("smart");
+const model = loadModel("fast");
 
 /**
  * Uses an LLM to analyze grouped Wikipedia content and generate all three

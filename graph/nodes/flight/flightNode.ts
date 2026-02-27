@@ -17,7 +17,7 @@ import type { Trip } from "../../../types/trip.js";
 const useFlightApi = process.env.USE_FLIGHT_API === "false";
 const GENERATE_SUMMARIES = process.env.GENERATE_SUMMARIES === "true";
 
-const model = loadModel("smart");
+const model = loadModel("fast");
 
 function getMissingFields(trip: Trip): string[] {
   const missing: string[] = [];
