@@ -1,6 +1,7 @@
 export interface Trip {
   origin: string | null;
   destination: string | null;
+  city: string | null;
   departureFlight: string | null;
   returnFlight: string | null;
   departureDate: string | null;
@@ -17,6 +18,7 @@ export function createEmptyTrip(): Trip {
   return {
     origin: null,
     destination: null,
+    city: null,
     departureFlight: null,
     returnFlight: null,
     departureDate: null,
