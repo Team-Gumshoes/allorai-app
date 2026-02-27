@@ -40,6 +40,7 @@ function createActivitiesTemplate(): Activities {
     location: null as unknown as string,
     description: null as unknown as string,
     website: null as unknown as string,
+    imageUrl: "",
   };
 }
 

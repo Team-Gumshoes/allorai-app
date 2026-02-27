@@ -47,6 +47,7 @@ function createFlightTemplate(): FlightResults {
     currency: null as unknown as string,
     legs: null as unknown as FlightLeg[],
     destinationAirport: null as unknown as AirportInfo,
+    destinationCity: null,
   };
 }
 
@@ -56,6 +57,7 @@ function buildSystemPrompt(trip: Trip): string {
 Current trip details:
 - Origin: ${trip.origin || "not specified"}
 - Destination: ${trip.destination || "not specified"}
+- City: ${trip.city || "not specified"}
 - Departure date: ${trip.departureDate || "not specified"}
 - Return date: ${trip.returnDate || "not specified"}
 - Budget: ${trip.budget ? `$${trip.budget}` : "not specified"}
@@ -80,6 +82,7 @@ Rules:
 - Be CONCISE. Keep responses short (1-2 sentences max).
 - Do NOT format or present detailed results to the user (that's handled separately).
 - If the user provides an airline, convert the airline name to its 2-character IATA code.
+- When calling searchFlights, pass cityName if the destination city name is known (use the City field from trip details above).
 `;
 }
 
