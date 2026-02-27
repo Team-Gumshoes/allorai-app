@@ -24,10 +24,17 @@ export interface AirportInfo {
   longitude_deg: number;
 }
 
+export interface CityInfo {
+  name: string;
+  latitude: number;
+  longitude: number;
+}
+
 export interface FlightResults {
   id: string;
   price: number;
   currency: string;
   legs: FlightLeg[];
   destinationAirport: AirportInfo;
+  destinationCity: CityInfo | null;
 }
