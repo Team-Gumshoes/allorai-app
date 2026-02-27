@@ -5,9 +5,14 @@ import type {
   FlightLeg,
   FlightSegment,
   AirportInfo,
+  CityInfo,
 } from "../../types/flight/flights.js";
 import { getAmadeusToken } from "../../utils/amadeus/tokenManager.js";
 import { validateAirportCode } from "./validateAirport.js";
+import {
+  searchWikipediaPageId,
+  fetchWikipediaCoordinates,
+} from "./searchWikipedia.js";
 import { nanoid } from "nanoid";
 
 /**
@@ -24,6 +29,7 @@ export const searchFlights = tool(
     departureDate,
     returnDate,
     includedAirlinesCodes,
+    cityName,
   }) => {
     let destinationAirportInfo: AirportInfo;
     try {
@@ -33,6 +39,23 @@ export const searchFlights = tool(
       );
     } catch {
       return JSON.stringify({ error: true, message: "Invalid Airport." });
+    }
+
+    // Fetch city-centre coordinates from Wikipedia when city name is provided
+    let destinationCityInfo: CityInfo | null = null;
+    if (cityName) {
+      const pageId = await searchWikipediaPageId(cityName);
+
+      if (pageId !== null) {
+        const coords = await fetchWikipediaCoordinates(pageId);
+        if (coords) {
+          destinationCityInfo = {
+            name: cityName,
+            latitude: coords.latitude,
+            longitude: coords.longitude,
+          };
+        }
+      }
     }
 
     const token = await getAmadeusToken();
@@ -95,6 +118,7 @@ export const searchFlights = tool(
         currency: "",
         legs: [],
         destinationAirport: destinationAirportInfo,
+        destinationCity: destinationCityInfo,
       };
 
       // const duration = offer.duration;
@@ -229,6 +253,12 @@ export const searchFlights = tool(
         .optional()
         .describe(
           "OPTIONAL: Array of 2-letter airline codes (e.g., ['AA', 'DL', 'UA'])",
+        ),
+      cityName: z
+        .string()
+        .optional()
+        .describe(
+          'OPTIONAL: Name of the destination city (e.g. "Barcelona"). Used to fetch city-centre coordinates.',
         ),
     }),
   },
