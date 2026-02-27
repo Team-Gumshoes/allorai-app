@@ -44,6 +44,7 @@ function createHotelTemplate(): HotelResults {
     longitude: null as unknown as number,
     description: null as unknown as string,
     website: null as unknown as string,
+    imageUrl: "",
   };
 }
 
