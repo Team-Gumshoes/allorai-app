@@ -256,9 +256,8 @@ export const searchFlights = tool(
         ),
       cityName: z
         .string()
-        .optional()
         .describe(
-          'OPTIONAL: Name of the destination city (e.g. "Barcelona"). Used to fetch city-centre coordinates.',
+          'REQUIRED: Name of the destination city (e.g. "Barcelona"). Used to fetch city-centre coordinates.',
         ),
     }),
   },
